@@ -1,8 +1,8 @@
 import uuid
+from datetime import datetime
 
 from pydantic import EmailStr
 from sqlmodel import Field, Relationship, SQLModel
-
 
 # Shared properties
 class UserBase(SQLModel):
@@ -43,6 +43,7 @@ class UpdatePassword(SQLModel):
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
+    balance: float = Field(default=0.0)
     items: list["Item"] = Relationship(back_populates="owner", cascade_delete=True)
 
 
@@ -89,6 +90,40 @@ class ItemPublic(ItemBase):
 
 class ItemsPublic(SQLModel):
     data: list[ItemPublic]
+    count: int
+
+
+# Transaction models for Apex financial platform
+class TransactionBase(SQLModel):
+    amount: float
+    type: str = Field(max_length=20)
+    status: str = Field(default="pending", max_length=20)
+    description: str | None = Field(default=None, max_length=255)
+
+
+class TransactionCreate(TransactionBase):
+    pass
+
+
+class TransactionUpdate(TransactionBase):
+    pass
+
+
+class Transaction(TransactionBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    user: User = Relationship()
+
+
+class TransactionPublic(TransactionBase):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    created_at: datetime
+
+
+class TransactionsPublic(SQLModel):
+    data: list[TransactionPublic]
     count: int
 
 
