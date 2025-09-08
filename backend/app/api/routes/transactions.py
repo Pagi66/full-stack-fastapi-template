@@ -45,7 +45,7 @@ def read_transactions(
         )
         transactions = session.exec(statement).all()
 
-    return TransactionsPublic(data=transactions, count=count)
+    return TransactionsPublic(data=[TransactionPublic.model_validate(tx) for tx in transactions], count=count)
 
 
 @router.get("/{id}", response_model=TransactionPublic)
