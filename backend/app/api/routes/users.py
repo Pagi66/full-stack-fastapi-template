@@ -23,6 +23,7 @@ from app.models import (
     UsersPublic,
     UserUpdate,
     UserUpdateMe,
+    Message,
 )
 from app.utils import generate_new_account_email, send_email
 
@@ -45,7 +46,7 @@ def read_users(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
     statement = select(User).offset(skip).limit(limit)
     users = session.exec(statement).all()
 
-    return UsersPublic(data=users, count=count)
+    return UsersPublic(data=[UserPublic.model_validate(user) for user in users], count=count)
 
 
 @router.post(
@@ -171,6 +172,39 @@ def read_user_by_id(
             detail="The user doesn't have enough privileges",
         )
     return user
+
+
+
+@router.get("/{user_id}/balance", response_model=Message)
+def read_user_balance(user_id: uuid.UUID, session: SessionDep, current_user: CurrentUser) -> Any:
+    """
+    Retrieve a user's balance. Owners can read their balance; superusers can read any.
+    """
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user != current_user and not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    return Message(message=str(user.balance))
+
+
+@router.patch("/{user_id}/balance", response_model=Message)
+def update_user_balance(
+    user_id: uuid.UUID, session: SessionDep, current_user: CurrentUser, amount: float
+) -> Any:
+    """
+    Update a user's balance. Only superusers can update other users. Users may update their own balance.
+    """
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user != current_user and not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    user.balance = amount
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return Message(message=str(user.balance))
 
 
 @router.patch(

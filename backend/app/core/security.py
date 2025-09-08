@@ -2,6 +2,20 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import jwt
+from jwt.exceptions import InvalidTokenError
+
+ALGORITHM = "HS256"
+
+def decode_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except InvalidTokenError:
+        return {}
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
+import jwt
 from passlib.context import CryptContext
 
 from app.core.config import settings
