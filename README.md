@@ -216,6 +216,16 @@ The input variables, with their default values (some auto generated) are:
 
 Backend docs: [backend/README.md](./backend/README.md).
 
+## AI WebSocket Chat
+
+This project includes a small AI WebSocket chat endpoint for authenticated users.
+
+- Endpoint: `/api/v1/ws/chat/{user_id}`
+- Authentication: pass a valid JWT as the `token` query parameter when opening the WebSocket connection (e.g. `ws://localhost:8000/api/v1/ws/chat/1?token=<JWT>`).
+- Behavior: The backend validates the JWT, ensures the `sub` claim matches `user_id`, and then forwards incoming text messages to a local AI orchestrator stub which returns a mock reply.
+
+The orchestrator is a stub located at `backend/app/services/ai/orchestrator.py` and can be replaced with real model integrations later.
+
 ## Frontend Development
 
 Frontend docs: [frontend/README.md](./frontend/README.md).
