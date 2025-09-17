@@ -1,50 +1,29 @@
-import {
-  MutationCache,
-  QueryCache,
-  QueryClient,
-  QueryClientProvider,
-} from "@tanstack/react-query"
-import { RouterProvider, createRouter } from "@tanstack/react-router"
-import React, { StrictMode } from "react"
-import ReactDOM from "react-dom/client"
-import { routeTree } from "./routeTree.gen"
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter, Route, Routes } from "react-router";
+import { HomeScreen } from "@/pages/home-screen";
+import { Landing } from "@/pages/landing";
+import { Login } from "@/pages/login";
+import { Signup } from "@/pages/signup";
+import { NotFound } from "@/pages/not-found";
+import { RouteProvider } from "@/providers/router-provider";
+import { ThemeProvider } from "@/providers/theme-provider";
+import "@/styles/globals.css";
 
-import { ApiError, OpenAPI } from "./client"
-import { CustomProvider } from "./components/ui/provider"
-
-OpenAPI.BASE = import.meta.env.VITE_API_URL
-OpenAPI.TOKEN = async () => {
-  return localStorage.getItem("access_token") || ""
-}
-
-const handleApiError = (error: Error) => {
-  if (error instanceof ApiError && [401, 403].includes(error.status)) {
-    localStorage.removeItem("access_token")
-    window.location.href = "/login"
-  }
-}
-const queryClient = new QueryClient({
-  queryCache: new QueryCache({
-    onError: handleApiError,
-  }),
-  mutationCache: new MutationCache({
-    onError: handleApiError,
-  }),
-})
-
-const router = createRouter({ routeTree })
-declare module "@tanstack/react-router" {
-  interface Register {
-    router: typeof router
-  }
-}
-
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <CustomProvider>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </CustomProvider>
-  </StrictMode>,
-)
+createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+        <ThemeProvider>
+            <BrowserRouter>
+                <RouteProvider>
+                    <Routes>
+                        <Route path="/" element={<Landing />} />
+                        <Route path="/home" element={<HomeScreen />} />
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/signup" element={<Signup />} />
+                        <Route path="*" element={<NotFound />} />
+                    </Routes>
+                </RouteProvider>
+            </BrowserRouter>
+        </ThemeProvider>
+    </StrictMode>,
+);
