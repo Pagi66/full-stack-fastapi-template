@@ -1,9 +1,10 @@
 import { ArrowLeft } from "@untitledui/icons";
-import { useNavigate } from "react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { Button } from "@/components/base/buttons/button";
 
 export function NotFound() {
-    const router = useNavigate();
+    const navigate = useNavigate();
+    const router = useRouter();
 
     return (
         <section className="flex min-h-screen items-start bg-primary py-16 md:items-center md:py-24">
@@ -18,10 +19,10 @@ export function NotFound() {
                     </div>
 
                     <div className="flex flex-col-reverse gap-3 sm:flex-row">
-                        <Button color="secondary" size="xl" iconLeading={ArrowLeft} onClick={() => router(-1)}>
+                        <Button color="secondary" size="xl" iconLeading={ArrowLeft} onClick={() => router.history.back()}>
                             Go back
                         </Button>
-                        <Button size="xl" onClick={() => router(-1)}>
+                        <Button size="xl" onClick={() => navigate({ to: "/" })}>
                             Take me home
                         </Button>
                     </div>

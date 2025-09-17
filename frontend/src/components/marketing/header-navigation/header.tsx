@@ -6,8 +6,8 @@ import { Button } from "@/components/base/buttons/button";
 import { ThemeToggle } from "@/components/base/buttons/theme-toggle";
 import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
 import { UntitledLogoMinimal } from "@/components/foundations/logo/untitledui-logo-minimal";
-import { DropdownMenuSimple } from "@/components/marketing/header-navigation/dropdown-header-navigation";
 import { cx } from "@/utils/cx";
+import { handleSmoothScrollClick } from "@/utils/smooth-scroll";
 
 type HeaderNavItem = {
     label: string;
@@ -16,11 +16,11 @@ type HeaderNavItem = {
 };
 
 const headerNavItems: HeaderNavItem[] = [
-    { label: "Products", href: "/products", menu: <DropdownMenuSimple /> },
-    { label: "Services", href: "/Services", menu: <DropdownMenuSimple /> },
-    { label: "Pricing", href: "/pricing" },
-    { label: "Resources", href: "/resources", menu: <DropdownMenuSimple /> },
-    { label: "About", href: "/about" },
+    { label: "Features", href: "#features" },
+    { label: "About", href: "#about" },
+    { label: "Pricing", href: "#pricing" },
+    { label: "Testimonials", href: "#testimonials" },
+    { label: "Contact", href: "#contact" },
 ];
 
 const footerNavItems = [
@@ -40,7 +40,11 @@ const MobileNavItem = (props: { className?: string; label: string; href?: string
     if (props.href) {
         return (
             <li>
-                <a href={props.href} className="flex items-center justify-between px-4 py-3 text-md font-semibold text-primary hover:bg-primary_hover">
+                <a 
+                    href={props.href} 
+                    className="flex items-center justify-between px-4 py-3 text-md font-semibold text-primary hover:bg-primary_hover"
+                    onClick={(e) => handleSmoothScrollClick(e, props.href!)}
+                >
                     {props.label}
                 </a>
             </li>
@@ -50,7 +54,7 @@ const MobileNavItem = (props: { className?: string; label: string; href?: string
     return (
         <li className="flex flex-col gap-0.5">
             <button
-                aria-expanded={isOpen}
+                aria-expanded={isOpen ? "true" : "false"}
                 onClick={() => setIsOpen(!isOpen)}
                 className="flex w-full items-center justify-between px-4 py-3 text-md font-semibold text-primary hover:bg-primary_hover"
             >
@@ -168,6 +172,7 @@ export const Header = ({ items = headerNavItems, isFullWidth, isFloating, classN
                                             <a
                                                 href={navItem.href}
                                                 className="flex cursor-pointer items-center gap-0.5 rounded-lg px-1.5 py-1 text-md font-semibold text-secondary outline-focus-ring transition duration-100 ease-linear hover:text-secondary_hover focus:outline-offset-2 focus-visible:outline-2"
+                                                onClick={(e) => handleSmoothScrollClick(e, navItem.href!)}
                                             >
                                                 <span className="px-0.5">{navItem.label}</span>
                                             </a>

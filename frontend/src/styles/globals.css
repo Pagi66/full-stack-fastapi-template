@@ -10,6 +10,11 @@
 @custom-variant label (& [data-label]);
 @custom-variant focus-input-within (&:has(input:focus));
 
+/* Smooth scrolling for the entire document */
+html {
+    scroll-behavior: smooth;
+}
+
 @utility scrollbar-hide {
     /* For Webkit-based browsers (Chrome, Safari and Opera) */
     &::-webkit-scrollbar {
@@ -54,6 +59,7 @@ input::-webkit-inner-spin-button {
 /* Firefox */
 input[type="number"] {
     -moz-appearance: textfield;
+    appearance: textfield;
 }
 
 /* Hide the default clear button (X) from search inputs. */

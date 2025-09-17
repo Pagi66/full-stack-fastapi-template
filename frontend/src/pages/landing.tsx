@@ -1,3 +1,4 @@
+import React, { useEffect, useRef } from "react";
 import { ArrowRight, PlayCircle } from "@untitledui/icons";
 import { motion } from "motion/react";
 import { BadgeGroup } from "@/components/base/badges/badge-groups";
@@ -19,6 +20,45 @@ import { FooterLarge13Brand } from "@/components/marketing/footers/footer-large-
 const HeaderPrimary = () => {
     return (
         <Header className="bg-utility-brand-50_alt [&_nav>ul>li>a]:text-brand-primary [&_nav>ul>li>a]:hover:text-brand-primary [&_nav>ul>li>button]:text-brand-primary [&_nav>ul>li>button]:hover:text-brand-primary [&_nav>ul>li>button>svg]:text-fg-brand-secondary_alt" />
+    );
+};
+
+const AutoLoopVideo = () => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+
+        // Slow down the video playback speed
+        video.playbackRate = 0.5;
+
+        const handleTimeUpdate = () => {
+            // Loop the video every 10 seconds
+            if (video.currentTime >= 10) {
+                video.currentTime = 0;
+            }
+        };
+
+        video.addEventListener('timeupdate', handleTimeUpdate);
+        
+        return () => {
+            video.removeEventListener('timeupdate', handleTimeUpdate);
+        };
+    }, []);
+
+    return (
+        <video
+            ref={videoRef}
+            className="w-full h-full object-cover"
+            autoPlay
+            muted
+            playsInline
+            src="/images/better-performance-illustration-video.mp4"
+        >
+            <source src="/images/better-performance-illustration-video.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+        </video>
     );
 };
 
@@ -101,7 +141,7 @@ const HeroSection = () => {
                 <div className="mx-auto max-w-container px-4 md:px-8">
                     <div className="relative mx-auto w-full max-w-4xl">
                         <motion.div 
-                            className="aspect-video w-full rounded-xl bg-gradient-to-br from-brand-primary to-brand-secondary shadow-2xl"
+                            className="aspect-video w-full rounded-xl overflow-hidden shadow-2xl"
                             animate={{ 
                                 y: [0, -10, 0],
                                 boxShadow: [
@@ -121,26 +161,7 @@ const HeroSection = () => {
                                 transition: { duration: 0.3 }
                             }}
                         >
-                            <div className="flex h-full items-center justify-center">
-                                <motion.div
-                                    className="text-center text-white"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ duration: 0.8, delay: 1.2 }}
-                                >
-                                    <motion.div
-                                        whileHover={{ 
-                                            scale: 1.1,
-                                            rotate: 5,
-                                            transition: { duration: 0.2 }
-                                        }}
-                                    >
-                                        <PlayCircle className="mx-auto mb-4 size-16 opacity-80" />
-                                    </motion.div>
-                                    <p className="text-lg font-medium">Product Demo Video</p>
-                                    <p className="text-sm opacity-75">Click to play</p>
-                                </motion.div>
-                            </div>
+                            <AutoLoopVideo />
                         </motion.div>
                     </div>
                 </div>
@@ -151,7 +172,8 @@ const HeroSection = () => {
 
 const AboutSection = () => {
     return (
-        <section className="py-16 md:py-24 bg-primary">
+        <section id="about" className="py-16 md:py-24 bg-primary"
+        >
             <div className="mx-auto max-w-container px-4 md:px-8">
                 <motion.div
                     className="mx-auto max-w-3xl text-center"
@@ -220,7 +242,7 @@ const AboutSection = () => {
 
 const TestimonialsSection = () => {
     return (
-        <section className="py-16 md:py-24 bg-secondary">
+        <section id="testimonials" className="py-16 md:py-24 bg-secondary">
             <div className="mx-auto max-w-container px-4 md:px-8">
                 <motion.div
                     className="mx-auto max-w-3xl text-center"
@@ -320,7 +342,7 @@ const TestimonialsSection = () => {
 
 const CTASection = () => {
     return (
-        <section className="py-16 md:py-24 bg-primary">
+        <section id="contact" className="py-16 md:py-24 bg-primary">
             <div className="mx-auto max-w-container px-4 md:px-8">
                 <motion.div
                     className="mx-auto max-w-3xl text-center"
@@ -384,16 +406,20 @@ const CTASection = () => {
 };
 
 export const Landing = () => {
-    const sections = [
+    const sections: Array<{ 
+        component: React.ComponentType; 
+        delay: number; 
+        id?: string 
+    }> = [
         { component: BannerTextFieldDefault, delay: 0 },
         { component: HeaderPrimary, delay: 0.1 },
         { component: HeroSection, delay: 0 },
         { component: SocialProofCardBrand, delay: 0.2 },
         { component: AboutSection, delay: 0 },
         { component: MetricsCardGrayLight, delay: 0.3 },
-        { component: FeaturesSimpleIcons02Brand, delay: 0.4 },
+        { component: FeaturesSimpleIcons02Brand, delay: 0.4, id: "features" },
         { component: ContentSectionSplitImage02, delay: 0.5 },
-        { component: PricingPrimaryDarkBadge, delay: 0.6 },
+        { component: PricingPrimaryDarkBadge, delay: 0.6, id: "pricing" },
         { component: TestimonialsSection, delay: 0 },
         { component: FAQAccordion01Brand, delay: 0.7 },
         { component: NewsletterIPhoneMockup01, delay: 0.8 },
@@ -418,6 +444,15 @@ export const Landing = () => {
                     return <Component key={index} />;
                 }
 
+                // Wrap components with section ID if specified
+                const content = section.id ? (
+                    <div id={section.id}>
+                        <Component />
+                    </div>
+                ) : (
+                    <Component />
+                );
+
                 return (
                     <motion.div
                         key={index}
@@ -430,7 +465,7 @@ export const Landing = () => {
                             ease: "easeOut" 
                         }}
                     >
-                        <Component />
+                        {content}
                     </motion.div>
                 );
             })}
