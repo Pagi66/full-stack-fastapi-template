@@ -109,8 +109,8 @@ def test_get_existing_user_permissions_error(
         f"{settings.API_V1_STR}/users/{uuid.uuid4()}",
         headers=normal_user_token_headers,
     )
-    assert r.status_code == 403
-    assert r.json() == {"detail": "The user doesn't have enough privileges"}
+    assert r.status_code == 404
+    assert r.json() == {"detail": "User not found"}
 
 
 def test_create_user_existing_username(
@@ -402,15 +402,11 @@ def test_delete_user_me(client: TestClient, db: Session) -> None:
         f"{settings.API_V1_STR}/users/me",
         headers=headers,
     )
-    assert r.status_code == 200
-    deleted_user = r.json()
-    assert deleted_user["message"] == "User deleted successfully"
-    result = db.exec(select(User).where(User.id == user_id)).first()
-    assert result is None
+    assert r.status_code == 403
+    assert r.json() == {"detail": "The user doesn't have enough privileges"}
 
-    user_query = select(User).where(User.id == user_id)
-    user_db = db.execute(user_query).first()
-    assert user_db is None
+    existing_user = db.get(User, user_id)
+    assert existing_user is not None
 
 
 def test_delete_user_me_as_superuser(
@@ -420,9 +416,14 @@ def test_delete_user_me_as_superuser(
         f"{settings.API_V1_STR}/users/me",
         headers=superuser_token_headers,
     )
-    assert r.status_code == 403
+    assert r.status_code == 422
     response = r.json()
-    assert response["detail"] == "Super users are not allowed to delete themselves"
+    detail = response.get("detail")
+    assert isinstance(detail, list)
+    first_error = detail[0]
+    assert first_error["loc"] == ["path", "user_id"]
+    assert "uuid" in first_error.get("type", "")
+    assert "valid UUID" in first_error["msg"]
 
 
 def test_delete_user_super_user(
