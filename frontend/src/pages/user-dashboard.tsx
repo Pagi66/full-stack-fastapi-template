@@ -2,8 +2,6 @@ import { useMemo } from "react";
 import {
   Activity,
   BarChart01,
-  CreditCard01,
-  Star01,
   TrendUp01,
   TrendDown01,
   Wallet01,
@@ -205,7 +203,7 @@ export const UserDashboard = () => {
                   </Badge>
                 </td>
                 <td className="px-3 py-2">{new Date(tx.created_at).toLocaleString()}</td>
-                <td className="px-3 py-2">{tx.executed_at ? new Date(tx.executed_at).toLocaleString() : '—'}</td>
+                <td className="px-3 py-2">{tx.executed_at ? new Date(tx.executed_at).toLocaleString() : 'N/A'}</td>
               </tr>
             ))}
           </tbody>

@@ -92,4 +92,5 @@
 - 2025-09-20T16:19:41+01:00 | Rebuilt backend image with latest schema, reran `docker compose up --build prestart` to run migrations and seed data (only passlib warning), confirmed `docker compose run --rm backend alembic current` reports b83cf1b7a582 head, then `docker compose down` to clean up; ready for UI smoke tests.
 - 2025-09-20T16:42:19+01:00 | Documented seeded admin/user credentials in Test Credentials section for quick iteration.
 - 2025-09-20T17:11:36+01:00 | Restarted containers, confirmed backend login request succeeds (200) via curl, fixed missing Message imports in performance/trades routes, and updated frontend auth routing to use router.navigate after diagnosing post-login redirect.
-
+- 2025-09-20T17:48:22+01:00 | Cleaned generated UsersService balance overload, adjusted admin dashboard/user dashboard UI props (valid badge/button colors, safe fallbacks), removed date-fns dependency in favor of Intl formatting, and rebuilt frontend image successfully via docker compose (tsc + vite now pass).
+- 2025-09-20T18:12:45+01:00 | Updated auth-provider login mutation to send grant_type=password and stop sending empty client fields; docker compose watch running, UI retest pending.

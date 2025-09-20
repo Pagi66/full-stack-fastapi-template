@@ -232,33 +232,6 @@ export class UsersService {
         });
     }
     /**
-     * Update User Balance
-     * Update a user's balance. Only superusers can update other users. Users may update their own balance.
-     * @param userId
-     * @param amount
-     * @returns Message Successful Response
-     * @throws ApiError
-     */
-    public static usersUpdateUserBalance(
-        userId: string,
-        amount: number,
-    ): CancelablePromise<Message> {
-        return __request(OpenAPI, {
-            method: 'PATCH',
-            url: '/api/v1/users/{user_id}/balance',
-            path: {
-                'user_id': userId,
-            },
-            query: {
-                'amount': amount,
-            },
-            errors: {
-                422: `Validation Error`,
-            },
-        });
-    }
-
-    /**
      * Adjust user balance (admin only)
      */
     public static usersUpdateUserBalance(

@@ -18,10 +18,12 @@ import {
   UserCheck02,
   Users03,
 } from "@untitledui/icons";
-import { format } from "date-fns";
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
+
+const formatDateTime = (value?: string | null) =>
+  value ? new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'N/A';
 
 export const Dashboard = () => {
   const { user } = useAuth();
@@ -190,12 +192,12 @@ export const Dashboard = () => {
                           <Avatar size="xs" initials={item.email.slice(0, 2).toUpperCase()} />
                           <div>
                             <p className="font-medium text-fg-primary">{item.email}</p>
-                            <p className="text-xs text-fg-tertiary">{item.full_name ?? '—'}</p>
+                            <p className="text-xs text-fg-tertiary">{item.full_name ?? 'N/A'}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-3 py-3">
-                        <Badge type="color" size="sm" color={item.role === 'admin' ? 'brand' : 'secondary'}>
+                        <Badge type="color" size="sm" color={item.role === 'admin' ? 'brand' : 'gray'}>
                           {item.role}
                         </Badge>
                       </td>
@@ -211,30 +213,30 @@ export const Dashboard = () => {
                         </Badge>
                       </td>
                       <td className="px-3 py-3 text-xs text-fg-tertiary">
-                        {item.last_login_at ? format(new Date(item.last_login_at), 'PPP p') : '—'}
+                        {formatDateTime(item.last_login_at)}
                       </td>
                       <td className="px-3 py-3">
                         <div className="flex flex-wrap gap-2">
-                          <Button color="secondary" size="xs" onClick={() => handleBalanceAdjust(item)}>
+                          <Button color="secondary" size="sm" onClick={() => handleBalanceAdjust(item)}>
                             Adjust balance
                           </Button>
-                          <Button color="secondary" size="xs" onClick={() => handleRoleToggle(item)}>
+                          <Button color="secondary" size="sm" onClick={() => handleRoleToggle(item)}>
                             Set {item.role === 'admin' ? 'user' : 'admin'}
                           </Button>
-                          <Button color="secondary" size="xs" onClick={() => handleTierUpdate(item)}>
+                          <Button color="secondary" size="sm" onClick={() => handleTierUpdate(item)}>
                             Update tier
                           </Button>
                           <Button
-                            color="success"
-                            size="xs"
+                            color="primary"
+                            size="sm"
                             disabled={item.kyc_status === 'approved'}
                             onClick={() => handleKycDecision(item, 'approved')}
                           >
                             Approve KYC
                           </Button>
                           <Button
-                            color="warning"
-                            size="xs"
+                            color="primary-destructive"
+                            size="sm"
                             disabled={item.kyc_status === 'rejected'}
                             onClick={() => handleKycDecision(item, 'rejected')}
                           >
@@ -242,7 +244,7 @@ export const Dashboard = () => {
                           </Button>
                           <Button
                             color="secondary"
-                            size="xs"
+                            size="sm"
                             onClick={() => setSelectedUser(item)}
                           >
                             Inspect
@@ -283,7 +285,7 @@ export const Dashboard = () => {
               </div>
               <div>
                 <dt className="text-xs uppercase text-fg-tertiary">KYC notes</dt>
-                <dd className="text-sm text-fg-primary">{selectedUser.kyc_notes ?? '—'}</dd>
+                <dd className="text-sm text-fg-primary">{selectedUser.kyc_notes ?? ''}</dd>
               </div>
             </dl>
           </section>

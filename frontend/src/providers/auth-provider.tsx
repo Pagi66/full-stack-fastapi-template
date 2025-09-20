@@ -86,11 +86,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       LoginService.loginLoginAccessToken({
         username: email,
-        password: password,
-        grant_type: '',
-        scope: '',
-        client_id: '',
-        client_secret: '',
+        password,
+        grant_type: 'password',
       }),
     onSuccess: async (data) => {
       setAccessToken(data.access_token);
