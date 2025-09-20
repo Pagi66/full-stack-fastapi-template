@@ -40,7 +40,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const normaliseUser = (payload: Record<string, unknown>): User => {
-  const rawRole = (payload.role as string) ?? 'user';
+  const rawRole = ((payload.role as string) ?? 'user').toLowerCase();
   const role: UserRole = rawRole === 'admin' ? 'admin' : 'user';
   return {
     id: String(payload.id),
@@ -92,7 +92,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     onSuccess: async (data) => {
       setAccessToken(data.access_token);
       setAuthTokenState(data.access_token);
-      await queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+      try {
+        const currentUser = await LoginService.loginTestToken();
+        queryClient.setQueryData(['currentUser'], currentUser);
+        setUser(normaliseUser(currentUser as Record<string, unknown>));
+      } catch (error) {
+        clearAccessToken();
+        setAuthTokenState(undefined);
+        queryClient.removeQueries({ queryKey: ['currentUser'] });
+        throw error;
+      }
     },
   });
 
@@ -120,7 +129,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string): Promise<UserRole> => {
     const token = await loginMutation.mutateAsync({ email, password });
-    const rawRole = (token?.role as string) ?? 'user';
+    const rawRole = ((token?.role as string) ?? 'user').toLowerCase();
     return rawRole === 'admin' ? 'admin' : 'user';
   };
 
@@ -167,3 +176,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

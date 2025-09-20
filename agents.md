@@ -94,3 +94,6 @@
 - 2025-09-20T17:11:36+01:00 | Restarted containers, confirmed backend login request succeeds (200) via curl, fixed missing Message imports in performance/trades routes, and updated frontend auth routing to use router.navigate after diagnosing post-login redirect.
 - 2025-09-20T17:48:22+01:00 | Cleaned generated UsersService balance overload, adjusted admin dashboard/user dashboard UI props (valid badge/button colors, safe fallbacks), removed date-fns dependency in favor of Intl formatting, and rebuilt frontend image successfully via docker compose (tsc + vite now pass).
 - 2025-09-20T18:12:45+01:00 | Updated auth-provider login mutation to send grant_type=password and stop sending empty client fields; docker compose watch running, UI retest pending.
+- 2025-09-20T18:58:12+01:00 | Forced post-login user hydration via LoginService.loginTestToken and cleared tokens on failure so dashboards receive Authorization immediately; docker compose watch running, need browser retest.
+- 2025-09-20T19:47:02+01:00 | Rebuilt frontend/backend images via docker compose up --build, confirmed API tokens for admin/user succeed inside containers after role normalisation tweak pending UI retest.
+- 2025-09-20T20:02:25+01:00 | Login post-success now sets user state immediately for role-based guards; rebuilt services and re-verified admin token fetch in container.
