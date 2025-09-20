@@ -2,7 +2,7 @@ from sqlmodel import Session, create_engine, select
 
 from app import crud
 from app.core.config import settings
-from app.models import User, UserCreate
+from app.models import AccountTier, KycStatus, User, UserCreate, UserRole
 
 engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI))
 
@@ -29,5 +29,32 @@ def init_db(session: Session) -> None:
             email=settings.FIRST_SUPERUSER,
             password=settings.FIRST_SUPERUSER_PASSWORD,
             is_superuser=True,
+            role=UserRole.ADMIN.value,
         )
-        user = crud.create_user(session=session, user_create=user_in)
+        crud.create_user(session=session, user_create=user_in)
+
+    default_users = [
+        UserCreate(
+            email="admin@example.com",
+            password="Admin123!",
+            full_name="Demo Admin",
+            is_superuser=True,
+            role=UserRole.ADMIN.value,
+            account_tier=AccountTier.PREMIUM.value,
+            kyc_status=KycStatus.APPROVED.value,
+            kyc_notes="Seeded admin account",
+        ),
+        UserCreate(
+            email="user@example.com",
+            password="User1234!",
+            full_name="Demo User",
+            role=UserRole.USER.value,
+            account_tier=AccountTier.STANDARD.value,
+            kyc_status=KycStatus.APPROVED.value,
+            kyc_notes="Seeded user account",
+        ),
+    ]
+
+    for default_user in default_users:
+        if not crud.get_user_by_email(session=session, email=default_user.email):
+            crud.create_user(session=session, user_create=default_user)

@@ -4,8 +4,15 @@ import { CloseButton } from "@/components/base/buttons/close-button";
 import { Form } from "@/components/base/form/form";
 import { Input } from "@/components/base/input/input";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { useState } from "react";
 
 export const BannerTextFieldDefault = () => {
+    const [isVisible, setIsVisible] = useState(true);
+
+    if (!isVisible) {
+        return null;
+    }
+
     return (
         <div className="relative mx-2 mb-4 flex flex-col gap-4 rounded-xl bg-secondary_subtle p-4 shadow-lg ring-1 ring-primary ring-inset md:m-0 md:flex-row md:items-center md:gap-3 md:p-3">
             <div className="flex flex-1 items-center gap-4 md:w-0">
@@ -33,7 +40,7 @@ export const BannerTextFieldDefault = () => {
                     </Button>
                 </Form>
                 <div className="absolute top-2 right-2 flex shrink-0 items-center justify-center md:static">
-                    <CloseButton size="md" label="Dismiss" />
+                    <CloseButton size="md" label="Dismiss" onClick={() => setIsVisible(false)} />
                 </div>
             </div>
         </div>

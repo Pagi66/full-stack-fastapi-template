@@ -3,32 +3,31 @@ from typing import Any
 
 import jwt
 from jwt.exceptions import InvalidTokenError
-
-ALGORITHM = "HS256"
-
-def decode_token(token: str) -> dict:
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
-    except InvalidTokenError:
-        return {}
-from datetime import datetime, timedelta, timezone
-from typing import Any
-
-import jwt
 from passlib.context import CryptContext
 
 from app.core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-
 ALGORITHM = "HS256"
 
 
-def create_access_token(subject: str | Any, expires_delta: timedelta) -> str:
+def decode_token(token: str) -> dict[str, Any]:
+    try:
+        return jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+    except InvalidTokenError:
+        return {}
+
+
+def create_access_token(
+    subject: str | Any,
+    expires_delta: timedelta,
+    extra_claims: dict[str, Any] | None = None,
+) -> str:
     expire = datetime.now(timezone.utc) + expires_delta
-    to_encode = {"exp": expire, "sub": str(subject)}
+    to_encode: dict[str, Any] = {"exp": expire, "sub": str(subject)}
+    if extra_claims:
+        to_encode.update(extra_claims)
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 

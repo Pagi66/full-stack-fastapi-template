@@ -1,343 +1,330 @@
-import { useState, useEffect } from "react";
-import { 
-    User01, 
-    CreditCard01, 
-    Activity, 
-    Star01, 
-    BookOpen01, 
-    Settings01,
-    Bell02,
-    FileDownload01,
-    Mail01,
-    MessageCircle02
+import { useMemo } from "react";
+import {
+  Activity,
+  BarChart01,
+  CreditCard01,
+  Star01,
+  TrendUp01,
+  TrendDown01,
+  Wallet01,
 } from "@untitledui/icons";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/base/buttons/button";
-import { ButtonUtility } from "@/components/base/buttons/button-utility";
-import { Avatar } from "@/components/base/avatar/avatar";
 import { Badge } from "@/components/base/badges/badges";
-import { ProgressBarBase } from "@/components/base/progress-indicators/progress-indicators";
 import { Tabs } from "@/components/application/tabs/tabs";
+import { useAuth } from "@/providers/auth-provider";
+import {
+  PortfolioService,
+  type AccountSummary,
+  type DailyPerformanceEntry,
+  type TradesCollectionEntry,
+} from "@/api/services/PortfolioService";
+import { TransactionsService } from "@/api/services/TransactionsService";
+import type { TransactionPublic } from "@/api/models/TransactionPublic";
 
-interface UserStats {
-    profileCompletion: number;
-    totalOrders: number;
-    favoriteItems: number;
-    rewardPoints: number;
-}
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
-interface UserActivity {
-    id: string;
-    title: string;
-    description: string;
-    timestamp: string;
-    type: "order" | "favorite" | "review" | "account";
-}
+const formatPercent = (value: number) => `${value.toFixed(2)}%`;
 
-interface QuickAction {
-    title: string;
-    description: string;
-    icon: React.FC<{ className?: string }>;
-    color: "primary" | "secondary";
-}
+const emptyStateMessage = "No records available";
 
 export const UserDashboard = () => {
-    const [stats] = useState<UserStats>({
-        profileCompletion: 85,
-        totalOrders: 12,
-        favoriteItems: 8,
-        rewardPoints: 450
-    });
+  const { user, logout } = useAuth();
+  const userId = user?.id;
 
-    const [activities] = useState<UserActivity[]>([
-        {
-            id: "1",
-            title: "Order Delivered",
-            description: "Your order #ORD-2024-001 has been delivered successfully",
-            timestamp: "2 hours ago",
-            type: "order"
-        },
-        {
-            id: "2", 
-            title: "Added to Favorites",
-            description: "Wireless Headphones added to your wishlist",
-            timestamp: "1 day ago",
-            type: "favorite"
-        },
-        {
-            id: "3",
-            title: "Review Submitted",
-            description: "Thank you for rating Smart Watch Pro",
-            timestamp: "3 days ago",
-            type: "review"
-        },
-        {
-            id: "4",
-            title: "Profile Updated",
-            description: "Your shipping address has been updated",
-            timestamp: "1 week ago",
-            type: "account"
-        }
-    ]);
+  const accountSummaryQuery = useQuery({
+    queryKey: ["account-summary", userId],
+    queryFn: () => PortfolioService.accountSummary(userId!),
+    enabled: Boolean(userId),
+  });
 
-    useEffect(() => {
-        // Simulate data loading
-        const timer = setTimeout(() => {
-            // User data loading complete
-        }, 500);
+  const tradesQuery = useQuery({
+    queryKey: ["trades", userId],
+    queryFn: () => PortfolioService.trades(0, 10),
+    enabled: Boolean(userId),
+  });
 
-        return () => clearTimeout(timer);
-    }, []);
+  const performanceQuery = useQuery({
+    queryKey: ["daily-performance", userId],
+    queryFn: () => PortfolioService.dailyPerformance(0, 15),
+    enabled: Boolean(userId),
+  });
 
-    const quickActions: QuickAction[] = [
-        {
-            title: "View Orders",
-            description: "Track your recent purchases",
-            icon: CreditCard01,
-            color: "primary"
-        },
-        {
-            title: "Browse Catalog",
-            description: "Discover new products",
-            icon: BookOpen01,
-            color: "secondary"
-        },
-        {
-            title: "Contact Support",
-            description: "Get help with your account",
-            icon: MessageCircle02,
-            color: "secondary"
-        },
-        {
-            title: "Download Invoice",
-            description: "Get your purchase receipts",
-            icon: FileDownload01,
-            color: "secondary"
-        }
+  const transactionsQuery = useQuery({
+    queryKey: ["transactions", userId],
+    queryFn: () => TransactionsService.transactionsReadTransactions(0, 10),
+    enabled: Boolean(userId),
+  });
+
+  const summary = accountSummaryQuery.data;
+  const trades = tradesQuery.data?.data ?? [];
+  const dailyPerformance = performanceQuery.data?.data ?? [];
+  const transactions = transactionsQuery.data?.data ?? [];
+
+  const latestDailyProfit = dailyPerformance[0]?.profit_loss ?? 0;
+
+  const isLoading =
+    accountSummaryQuery.isLoading ||
+    tradesQuery.isLoading ||
+    performanceQuery.isLoading ||
+    transactionsQuery.isLoading;
+
+  const stats = useMemo(() => {
+    const base: AccountSummary | undefined = summary;
+    return [
+      {
+        title: "Current Balance",
+        value: formatCurrency(user?.balance ?? 0),
+        icon: Wallet01,
+        change: user?.account_tier ?? "Tier",
+        changeLabel: "Account tier",
+      },
+      {
+        title: "Total Deposits",
+        value: formatCurrency(base?.total_deposits ?? 0),
+        icon: TrendUp01,
+        change: formatCurrency(base?.net_profit ?? 0),
+        changeLabel: "Net profit",
+      },
+      {
+        title: "Total Withdrawals",
+        value: formatCurrency(base?.total_withdrawals ?? 0),
+        icon: TrendDown01,
+        change: `${base?.total_trades ?? 0}`,
+        changeLabel: "Trades taken",
+      },
+      {
+        title: "Latest Daily P&L",
+        value: formatCurrency(latestDailyProfit),
+        icon: BarChart01,
+        change: formatPercent(base?.win_rate ?? 0),
+        changeLabel: "Win rate",
+      },
     ];
+  }, [latestDailyProfit, summary, user?.account_tier, user?.balance]);
 
-    const getActivityIcon = (type: UserActivity['type']) => {
-        switch (type) {
-            case 'order': return CreditCard01;
-            case 'favorite': return Star01;
-            case 'review': return MessageCircle02;
-            case 'account': return User01;
-            default: return Activity;
-        }
-    };
-
-    const getActivityColor = (type: UserActivity['type']) => {
-        switch (type) {
-            case 'order': return "success";
-            case 'favorite': return "warning";
-            case 'review': return "brand";
-            case 'account': return "gray";
-            default: return "gray";
-        }
-    };
+  const renderDailyPerformance = (entries: DailyPerformanceEntry[]) => {
+    if (!entries.length) {
+      return <p className="text-sm text-fg-tertiary">{emptyStateMessage}</p>;
+    }
 
     return (
-        <div className="min-h-screen bg-bg-primary">
-            {/* Header */}
-            <header className="border-b border-border-secondary bg-bg-primary px-6 py-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-display-sm font-semibold text-fg-primary">My Dashboard</h1>
-                        <p className="mt-1 text-md text-fg-tertiary">Welcome back, John! Here's your personal overview.</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <ButtonUtility
-                            icon={Bell02}
-                            tooltip="Notifications"
-                            color="secondary"
-                        />
-                        <ButtonUtility
-                            icon={Mail01}
-                            tooltip="Messages"
-                            color="secondary"
-                        />
-                        <ButtonUtility
-                            icon={Settings01}
-                            tooltip="Account Settings"
-                            color="secondary"
-                        />
-                        <Avatar
-                            size="sm"
-                            initials="JD"
-                            status="online"
-                        />
-                    </div>
-                </div>
-            </header>
-
-            <main className="p-6">
-                {/* Stats Overview */}
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                    {/* Profile Completion */}
-                    <div className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
-                        <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                                <p className="text-sm font-medium text-fg-tertiary">Profile Completion</p>
-                                <p className="mt-2 text-display-xs font-semibold text-fg-primary">{stats.profileCompletion}%</p>
-                            </div>
-                            <div className="rounded-lg bg-bg-secondary p-3">
-                                <User01 className="size-6 text-fg-secondary" />
-                            </div>
-                        </div>
-                        <div className="mt-4">
-                            <ProgressBarBase value={stats.profileCompletion} className="h-2" />
-                            <p className="mt-2 text-sm text-fg-tertiary">Complete your profile to unlock rewards</p>
-                        </div>
-                    </div>
-
-                    {/* Total Orders */}
-                    <div className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-fg-tertiary">Total Orders</p>
-                                <p className="mt-2 text-display-xs font-semibold text-fg-primary">{stats.totalOrders}</p>
-                            </div>
-                            <div className="rounded-lg bg-bg-secondary p-3">
-                                <CreditCard01 className="size-6 text-fg-secondary" />
-                            </div>
-                        </div>
-                        <div className="mt-4">
-                            <Badge type="color" color="success" size="sm">
-                                Active Customer
-                            </Badge>
-                        </div>
-                    </div>
-
-                    {/* Favorite Items */}
-                    <div className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-fg-tertiary">Wishlist Items</p>
-                                <p className="mt-2 text-display-xs font-semibold text-fg-primary">{stats.favoriteItems}</p>
-                            </div>
-                            <div className="rounded-lg bg-bg-secondary p-3">
-                                <Star01 className="size-6 text-fg-secondary" />
-                            </div>
-                        </div>
-                        <div className="mt-4">
-                            <Button color="secondary" size="sm" className="w-full">
-                                View Wishlist
-                            </Button>
-                        </div>
-                    </div>
-
-                    {/* Reward Points */}
-                    <div className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-fg-tertiary">Reward Points</p>
-                                <p className="mt-2 text-display-xs font-semibold text-fg-primary">{stats.rewardPoints}</p>
-                            </div>
-                            <div className="rounded-lg bg-bg-secondary p-3">
-                                <Activity className="size-6 text-fg-secondary" />
-                            </div>
-                        </div>
-                        <div className="mt-4">
-                            <Badge type="color" color="warning" size="sm">
-                                50 pts to next reward
-                            </Badge>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Content Tabs */}
-                <div className="mt-8">
-                    <Tabs>
-                        <Tabs.List
-                            items={[
-                                { id: "activity", children: "Recent Activity" },
-                                { id: "orders", children: "My Orders" },
-                                { id: "account", children: "Account" }
-                            ]}
-                        />
-
-                        <Tabs.Panel id="activity" className="mt-6">
-                            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                                {/* Recent Activity */}
-                                <div className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
-                                    <h3 className="text-lg font-semibold text-fg-primary">Recent Activity</h3>
-                                    
-                                    <div className="mt-4 space-y-4">
-                                        {activities.map((activity) => {
-                                            const IconComponent = getActivityIcon(activity.type);
-                                            return (
-                                                <div key={activity.id} className="flex items-start gap-3">
-                                                    <div className="flex-shrink-0">
-                                                        <div className="rounded-lg bg-bg-secondary p-2">
-                                                            <IconComponent className="size-4 text-fg-secondary" />
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="font-medium text-fg-primary">{activity.title}</p>
-                                                        <p className="text-sm text-fg-secondary">{activity.description}</p>
-                                                        <div className="mt-2 flex items-center gap-2">
-                                                            <Badge 
-                                                                type="color" 
-                                                                color={getActivityColor(activity.type)} 
-                                                                size="sm"
-                                                            >
-                                                                {activity.type}
-                                                            </Badge>
-                                                            <span className="text-xs text-fg-tertiary">{activity.timestamp}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                {/* Quick Actions */}
-                                <div className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
-                                    <h3 className="text-lg font-semibold text-fg-primary">Quick Actions</h3>
-                                    <div className="mt-4 space-y-3">
-                                        {quickActions.map((action, index) => (
-                                            <Button
-                                                key={index}
-                                                color={action.color}
-                                                size="md"
-                                                iconLeading={action.icon}
-                                                className="w-full justify-start"
-                                            >
-                                                <div className="text-left">
-                                                    <div className="font-medium">{action.title}</div>
-                                                    <div className="text-xs opacity-75">{action.description}</div>
-                                                </div>
-                                            </Button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </Tabs.Panel>
-
-                        <Tabs.Panel id="orders" className="mt-6">
-                            <div className="rounded-lg border border-border-secondary bg-bg-primary p-8 text-center shadow-xs">
-                                <CreditCard01 className="mx-auto size-12 text-fg-tertiary" />
-                                <h3 className="mt-4 text-lg font-semibold text-fg-primary">Order History</h3>
-                                <p className="mt-2 text-fg-tertiary">View and track all your orders in one place.</p>
-                                <Button color="primary" size="md" className="mt-4">
-                                    View All Orders
-                                </Button>
-                            </div>
-                        </Tabs.Panel>
-
-                        <Tabs.Panel id="account" className="mt-6">
-                            <div className="rounded-lg border border-border-secondary bg-bg-primary p-8 text-center shadow-xs">
-                                <Settings01 className="mx-auto size-12 text-fg-tertiary" />
-                                <h3 className="mt-4 text-lg font-semibold text-fg-primary">Account Settings</h3>
-                                <p className="mt-2 text-fg-tertiary">Manage your profile, preferences, and security settings.</p>
-                                <Button color="primary" size="md" className="mt-4">
-                                    Manage Account
-                                </Button>
-                            </div>
-                        </Tabs.Panel>
-                    </Tabs>
-                </div>
-            </main>
-        </div>
+      <ul className="space-y-3">
+        {entries.map((entry) => (
+          <li key={entry.id} className="flex items-center justify-between rounded-lg border border-border-secondary bg-bg-primary px-4 py-3">
+            <div>
+              <p className="font-medium text-fg-primary">{entry.performance_date}</p>
+              <p className="text-xs text-fg-tertiary">Recorded {new Date(entry.created_at).toLocaleTimeString()}</p>
+            </div>
+            <Badge
+              type="color"
+              size="sm"
+              color={entry.profit_loss >= 0 ? "success" : "error"}
+            >
+              {formatCurrency(entry.profit_loss)}
+            </Badge>
+          </li>
+        ))}
+      </ul>
     );
+  };
+
+  const renderTrades = (rows: TradesCollectionEntry[]) => {
+    if (!rows.length) {
+      return <p className="text-sm text-fg-tertiary">{emptyStateMessage}</p>;
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-border-secondary">
+          <thead>
+            <tr className="text-left text-xs uppercase text-fg-tertiary">
+              <th className="px-3 py-2">Symbol</th>
+              <th className="px-3 py-2">Side</th>
+              <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2">Volume</th>
+              <th className="px-3 py-2">P&L</th>
+              <th className="px-3 py-2">Opened</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border-secondary text-sm text-fg-secondary">
+            {rows.map((trade) => (
+              <tr key={trade.id}>
+                <td className="px-3 py-2 font-medium text-fg-primary">{trade.symbol}</td>
+                <td className="px-3 py-2 capitalize">{trade.side}</td>
+                <td className="px-3 py-2">
+                  <Badge type="color" size="sm" color={trade.status === 'closed' ? 'success' : trade.status === 'open' ? 'brand' : 'warning'}>
+                    {trade.status}
+                  </Badge>
+                </td>
+                <td className="px-3 py-2">{trade.volume.toLocaleString()}</td>
+                <td className="px-3 py-2">
+                  <span className={trade.profit_loss && trade.profit_loss < 0 ? 'text-error-500' : 'text-success-500'}>
+                    {formatCurrency(trade.profit_loss ?? 0)}
+                  </span>
+                </td>
+                <td className="px-3 py-2">{new Date(trade.opened_at).toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderTransactions = (rows: TransactionPublic[]) => {
+    if (!rows.length) {
+      return <p className="text-sm text-fg-tertiary">{emptyStateMessage}</p>;
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-border-secondary">
+          <thead>
+            <tr className="text-left text-xs uppercase text-fg-tertiary">
+              <th className="px-3 py-2">Type</th>
+              <th className="px-3 py-2">Amount</th>
+              <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2">Created</th>
+              <th className="px-3 py-2">Executed</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border-secondary text-sm text-fg-secondary">
+            {rows.map((tx) => (
+              <tr key={tx.id}>
+                <td className="px-3 py-2 capitalize">{tx.transaction_type}</td>
+                <td className="px-3 py-2">{formatCurrency(tx.amount)}</td>
+                <td className="px-3 py-2">
+                  <Badge
+                    type="color"
+                    size="sm"
+                    color={tx.status === 'completed' ? 'success' : tx.status === 'pending' ? 'brand' : 'error'}
+                  >
+                    {tx.status}
+                  </Badge>
+                </td>
+                <td className="px-3 py-2">{new Date(tx.created_at).toLocaleString()}</td>
+                <td className="px-3 py-2">{tx.executed_at ? new Date(tx.executed_at).toLocaleString() : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-bg-secondary">
+      <header className="border-b border-border-secondary bg-bg-primary px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-display-xs font-semibold text-fg-primary">Welcome back{user?.full_name ? `, ${user.full_name}` : ''}</h1>
+            <p className="text-md text-fg-tertiary">Track your trading performance and account activity in one place.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Badge type="color" size="sm" color={user?.kyc_status === 'approved' ? 'success' : 'warning'}>
+              KYC: {user?.kyc_status ?? 'pending'}
+            </Badge>
+            <Button color="secondary" size="md" onClick={logout}>
+              Sign out
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="px-6 py-8">
+        {isLoading ? (
+          <div className="flex h-60 items-center justify-center">
+            <Activity className="size-6 animate-spin text-fg-tertiary" />
+          </div>
+        ) : (
+          <div className="space-y-8">
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {stats.map((stat) => (
+                <div key={stat.title} className="rounded-lg border border-border-secondary bg-bg-primary p-5 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-fg-tertiary">{stat.title}</p>
+                      <p className="mt-2 text-lg font-semibold text-fg-primary">{stat.value}</p>
+                    </div>
+                    <div className="rounded-lg bg-bg-secondary p-2">
+                      <stat.icon className="size-5 text-fg-secondary" />
+                    </div>
+                  </div>
+                  <p className="mt-4 text-xs text-fg-tertiary">{stat.changeLabel}</p>
+                  <p className="text-sm font-medium text-fg-secondary">{stat.change}</p>
+                </div>
+              ))}
+            </section>
+
+            <section className="grid gap-6 lg:grid-cols-2">
+              <div className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-fg-primary">Daily Performance</h2>
+                  <Badge type="color" size="sm" color={latestDailyProfit >= 0 ? 'success' : 'error'}>
+                    {formatCurrency(latestDailyProfit)} today
+                  </Badge>
+                </div>
+                <div className="mt-4 space-y-4">
+                  {renderDailyPerformance(dailyPerformance)}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
+                <h2 className="text-lg font-semibold text-fg-primary">Account Overview</h2>
+                <div className="mt-4 space-y-3 text-sm text-fg-secondary">
+                  <div className="flex justify-between">
+                    <span>Account tier</span>
+                    <Badge type="color" size="sm" color="brand">
+                      {user?.account_tier ?? 'basic'}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Total trades</span>
+                    <span>{summary?.total_trades ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Winning trades</span>
+                    <span>{summary?.winning_trades ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Losing trades</span>
+                    <span>{summary?.losing_trades ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Win rate</span>
+                    <span>{formatPercent(summary?.win_rate ?? 0)}</span>
+                  </div>
+                  {user?.kyc_notes && (
+                    <div className="rounded-md bg-warning-50 p-3 text-xs text-warning-600">
+                      <p className="font-medium">KYC note</p>
+                      <p>{user.kyc_notes}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
+              <Tabs>
+                <Tabs.List
+                  items={[
+                    { id: 'trades', children: 'Trades' },
+                    { id: 'transactions', children: 'Transactions' },
+                  ]}
+                />
+                <Tabs.Panel id="trades" className="mt-6">
+                  {renderTrades(trades)}
+                </Tabs.Panel>
+                <Tabs.Panel id="transactions" className="mt-6">
+                  {renderTransactions(transactions)}
+                </Tabs.Panel>
+              </Tabs>
+            </section>
+          </div>
+        )}
+      </main>
+    </div>
+  );
 };

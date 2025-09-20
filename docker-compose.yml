@@ -26,8 +26,14 @@ services:
       - default
     depends_on:
       - db
+    env_file:
+      - .env
     environment:
       - ADMINER_DESIGN=pepa-linha-dark
+      - ADMINER_DEFAULT_SERVER=db
+      - ADMINER_DEFAULT_DB=${POSTGRES_DB}
+      - ADMINER_DEFAULT_USERNAME=${POSTGRES_USER}
+      - ADMINER_DEFAULT_PASSWORD=${POSTGRES_PASSWORD}
     labels:
       - traefik.enable=true
       - traefik.docker.network=traefik-public

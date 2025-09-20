@@ -12,5 +12,10 @@ declare module "react-aria-components" {
 export const RouteProvider = ({ children }: PropsWithChildren) => {
     const navigate = useNavigate();
 
-    return <RouterProvider navigate={navigate}>{children}</RouterProvider>;
+    // Wrap the navigate function to match the expected signature
+    const wrappedNavigate = (path: string, routerOptions?: NavigateOptions) => {
+        navigate({ to: path as any, ...routerOptions } as any);
+    };
+
+    return <RouterProvider navigate={wrappedNavigate}>{children}</RouterProvider>;
 };

@@ -10,8 +10,32 @@ import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
 import { UntitledLogoMinimal } from "@/components/foundations/logo/untitledui-logo-minimal";
 import { ActiveUsersChart } from "@/components/shared-assets/illustrations/active-users-chart";
 import { UsersChart } from "@/components/shared-assets/illustrations/users-chart";
+import { useState } from "react";
+import { useRouter } from "@tanstack/react-router";
+import { useAuth } from "@/providers/auth-provider";
 
 export const LoginSplitCarousel = () => {
+    const [error, setError] = useState<string | null>(null);
+    const router = useRouter();
+    const { login, isLoading } = useAuth();
+
+    const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setError(null);
+
+        const formData = new FormData(e.currentTarget);
+        const email = formData.get('username') as string;
+        const password = formData.get('password') as string;
+
+        try {
+            const role = await login(email, password);
+            const destination = role === 'admin' ? '/admin/dashboard' : '/dashboard';
+            router.history.push(destination);
+        } catch (error) {
+            setError(error instanceof Error ? error.message : 'Login failed');
+        }
+    };
+
     return (
         <section className="grid min-h-screen grid-cols-1 bg-primary lg:grid-cols-2">
             <div className="flex flex-col bg-primary">
@@ -26,18 +50,13 @@ export const LoginSplitCarousel = () => {
                             </div>
                         </div>
 
-                        <Form
-                            onSubmit={(e) => {
-                                e.preventDefault();
-                                const data = Object.fromEntries(new FormData(e.currentTarget));
-                                console.log("Form data:", data);
-                            }}
-                            className="flex flex-col gap-6"
-                        >
-                            <div className="flex flex-col gap-5">
-                                <Input isRequired hideRequiredIndicator label="Email" type="email" name="email" placeholder="Enter your email" size="md" />
+                        <Form onSubmit={handleLogin} className="flex flex-col gap-6">
+                            <fieldset disabled={isLoading} className="flex flex-col gap-5">
+                                <Input isRequired hideRequiredIndicator label="Email" type="email" name="username" placeholder="Enter your email" size="md" />
                                 <Input isRequired hideRequiredIndicator label="Password" type="password" name="password" size="md" placeholder="••••••••" />
-                            </div>
+                            </fieldset>
+
+                            {error && <p className="text-sm text-red-500">{error}</p>}
 
                             <div className="flex items-center">
                                 <Checkbox label="Remember for 30 days" name="remember" />
@@ -48,8 +67,8 @@ export const LoginSplitCarousel = () => {
                             </div>
 
                             <div className="flex flex-col gap-4">
-                                <Button type="submit" size="lg">
-                                    Sign in
+                                <Button type="submit" size="lg" disabled={isLoading}>
+                                    {isLoading ? "Signing in..." : "Sign in"}
                                 </Button>
                                 <SocialButton social="google" theme="color">
                                     Sign in with Google

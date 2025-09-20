@@ -55,7 +55,6 @@ export const HeroAbstractAngles01 = () => {
                     <div className="mx-auto w-full max-w-container px-4 md:px-8">
                         <div className="flex justify-center">
                             <VideoPlayer
-                                size="lg"
                                 thumbnailUrl="https://www.untitledui.com/marketing/video-thumbnail.webp"
                                 src="https://www.untitledui.com/videos/untitled-ui-demo.mp4"
                                 className="aspect-video w-full overflow-hidden rounded-xl shadow-3xl md:max-w-240"

@@ -1,52 +1,87 @@
 import uuid
+from datetime import datetime
+from enum import Enum
 from typing import Any
 
 from sqlmodel import Session, select
 
 from app.core.security import get_password_hash, verify_password
-from app.models import Item, ItemCreate, User, UserCreate, UserUpdate
+from app.models import (
+    AccountSummary,
+    AccountSummaryBase,
+    AccountTier,
+    DailyPerformance,
+    DailyPerformanceCreate,
+    Item,
+    ItemCreate,
+    KycStatus,
+    Trade,
+    TradeCreate,
+    TradeUpdate,
+    Transaction,
+    TransactionCreate,
+    TransactionStatus,
+    TransactionUpdate,
+    User,
+    UserCreate,
+    UserRole,
+    UserUpdate,
+)
 
-def get_user_by_id(*, session: Session, user_id: str) -> User | None:
+
+def get_user_by_id(*, session: Session, user_id: uuid.UUID) -> User | None:
     statement = select(User).where(User.id == user_id)
-    session_user = session.exec(statement).first()
-    return session_user
-import uuid
-from typing import Any
-
-from sqlmodel import Session, select
-
-from app.core.security import get_password_hash, verify_password
-from app.models import Item, ItemCreate, User, UserCreate, UserUpdate
-
-
-def create_user(*, session: Session, user_create: UserCreate) -> User:
-    db_obj = User.model_validate(
-        user_create, update={"hashed_password": get_password_hash(user_create.password)}
-    )
-    session.add(db_obj)
-    session.commit()
-    session.refresh(db_obj)
-    return db_obj
-
-
-def update_user(*, session: Session, db_user: User, user_in: UserUpdate) -> Any:
-    user_data = user_in.model_dump(exclude_unset=True)
-    extra_data = {}
-    if "password" in user_data:
-        password = user_data["password"]
-        hashed_password = get_password_hash(password)
-        extra_data["hashed_password"] = hashed_password
-    db_user.sqlmodel_update(user_data, update=extra_data)
-    session.add(db_user)
-    session.commit()
-    session.refresh(db_user)
-    return db_user
+    return session.exec(statement).first()
 
 
 def get_user_by_email(*, session: Session, email: str) -> User | None:
     statement = select(User).where(User.email == email)
-    session_user = session.exec(statement).first()
-    return session_user
+    return session.exec(statement).first()
+
+
+def create_user(*, session: Session, user_create: UserCreate) -> User:
+    user_data = user_create.model_dump(exclude={"password"})
+    enum_mapping = {
+        'role': UserRole,
+        'account_tier': AccountTier,
+        'kyc_status': KycStatus,
+    }
+    for enum_field, enum_cls in enum_mapping.items():
+        value = user_data.get(enum_field)
+        if isinstance(value, Enum):
+            user_data[enum_field] = value.value
+        elif isinstance(value, str) and value is not None:
+            try:
+                member = enum_cls[value]
+            except KeyError:
+                member = enum_cls(value)
+            user_data[enum_field] = member.value
+    hashed_password = get_password_hash(user_create.password)
+    is_superuser = bool(user_data.pop("is_superuser", False) or user_create.role == UserRole.ADMIN)
+    user = User(
+        **user_data,
+        hashed_password=hashed_password,
+        is_superuser=is_superuser,
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def update_user(*, session: Session, db_user: User, user_in: UserUpdate) -> User:
+    user_data = user_in.model_dump(exclude_unset=True)
+    updates: dict[str, Any] = {}
+    if "password" in user_data:
+        updates["hashed_password"] = get_password_hash(user_data.pop("password"))
+    if "role" in user_data:
+        role = user_data["role"]
+        updates["is_superuser"] = db_user.is_superuser or role == UserRole.ADMIN
+    db_user.sqlmodel_update(user_data, update=updates)
+    session.add(db_user)
+    session.commit()
+    session.refresh(db_user)
+    return db_user
 
 
 def authenticate(*, session: Session, email: str, password: str) -> User | None:
@@ -64,3 +99,89 @@ def create_item(*, session: Session, item_in: ItemCreate, owner_id: uuid.UUID) -
     session.commit()
     session.refresh(db_item)
     return db_item
+
+
+def create_transaction(
+    *, session: Session, tx_in: TransactionCreate, owner_id: uuid.UUID | None = None
+) -> Transaction:
+    payload = tx_in.model_dump(exclude_unset=True)
+    user_id = tx_in.user_id or owner_id
+    if user_id is None:
+        raise ValueError("user_id must be provided to create a transaction")
+    payload.update({"user_id": user_id})
+    transaction = Transaction(**payload)
+    session.add(transaction)
+    session.commit()
+    session.refresh(transaction)
+    return transaction
+
+
+def update_transaction(
+    *, session: Session, db_tx: Transaction, tx_in: TransactionUpdate
+) -> Transaction:
+    tx_data = tx_in.model_dump(exclude_unset=True)
+    if "status" in tx_data and tx_data["status"] == TransactionStatus.COMPLETED:
+        tx_data.setdefault("executed_at", datetime.utcnow())
+    db_tx.sqlmodel_update(tx_data)
+    session.add(db_tx)
+    session.commit()
+    session.refresh(db_tx)
+    return db_tx
+
+
+def create_trade(
+    *, session: Session, trade_in: TradeCreate, owner_id: uuid.UUID | None = None
+) -> Trade:
+    payload = trade_in.model_dump(exclude_unset=True)
+    user_id = trade_in.user_id or owner_id
+    if user_id is None:
+        raise ValueError("user_id must be provided to create a trade")
+    payload.update({"user_id": user_id})
+    trade = Trade(**payload)
+    session.add(trade)
+    session.commit()
+    session.refresh(trade)
+    return trade
+
+
+def update_trade(*, session: Session, db_trade: Trade, trade_in: TradeUpdate) -> Trade:
+    trade_data = trade_in.model_dump(exclude_unset=True)
+    db_trade.sqlmodel_update(trade_data)
+    session.add(db_trade)
+    session.commit()
+    session.refresh(db_trade)
+    return db_trade
+
+
+def create_daily_performance(
+    *, session: Session, perf_in: DailyPerformanceCreate, owner_id: uuid.UUID | None = None
+) -> DailyPerformance:
+    payload = perf_in.model_dump(exclude_unset=True)
+    user_id = perf_in.user_id or owner_id
+    if user_id is None:
+        raise ValueError("user_id must be provided to create daily performance")
+    payload.update({"user_id": user_id})
+    record = DailyPerformance(**payload)
+    session.add(record)
+    session.commit()
+    session.refresh(record)
+    return record
+
+
+def upsert_account_summary(
+    *, session: Session, user_id: uuid.UUID, summary_in: AccountSummaryBase
+) -> AccountSummary:
+    statement = select(AccountSummary).where(AccountSummary.user_id == user_id)
+    summary = session.exec(statement).first()
+    payload = summary_in.model_dump()
+    if summary:
+        summary.sqlmodel_update(payload)
+        session.add(summary)
+        session.commit()
+        session.refresh(summary)
+        return summary
+    summary = AccountSummary(user_id=user_id, **payload)
+    session.add(summary)
+    session.commit()
+    session.refresh(summary)
+    return summary
