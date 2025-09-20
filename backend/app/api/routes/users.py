@@ -10,10 +10,10 @@ from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.core.config import settings
 from app.core.security import get_password_hash, verify_password
 from app.models import (
+    AccountSummary,
     AccountSummaryBase,
     AccountSummaryPublic,
     AccountTier,
-    AccountSummary,
     Item,
     KycStatus,
     Message,
@@ -25,8 +25,8 @@ from app.models import (
     UserCreate,
     UserPublic,
     UserRegister,
-    UsersPublic,
     UserRole,
+    UsersPublic,
     UserUpdate,
     UserUpdateMe,
 )
@@ -71,7 +71,7 @@ def read_users(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
 @router.post(
     "/", dependencies=[Depends(get_current_active_superuser)], response_model=UserPublic
 )
-def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
+async def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
     user = crud.get_user_by_email(session=session, email=user_in.email)
     if user:
         raise HTTPException(
@@ -83,7 +83,7 @@ def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
         email_data = generate_new_account_email(
             email_to=user_in.email, username=user_in.email, password=user_in.password
         )
-        send_email(
+        await send_email(
             email_to=user_in.email,
             subject=email_data.subject,
             html_content=email_data.html_content,

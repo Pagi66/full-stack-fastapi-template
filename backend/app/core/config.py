@@ -36,7 +36,14 @@ class Settings(BaseSettings):
     # 60 minutes * 24 hours * 8 days = 8 days
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
     FRONTEND_HOST: str = "http://localhost:5173"
+    LOG_LEVEL: str = "INFO"
+    LOG_JSON: bool = True
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
+
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_MAX_REQUESTS: int = 100
+    RATE_LIMIT_WINDOW_SECONDS: int = 60
+    RATE_LIMIT_EXCLUDE_PATHS: list[str] = ["/api/v1/utils/health-check/"]
 
     BACKEND_CORS_ORIGINS: Annotated[
         list[AnyUrl] | str, BeforeValidator(parse_cors)
