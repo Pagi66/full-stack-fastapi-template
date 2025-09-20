@@ -25,7 +25,7 @@ This document outlines the authentication workflow for the Fleet ERP frontend. T
 ### 1. Auth Provider — `src/providers/auth-provider.tsx`
 - Wraps the app with `AuthContext`.
 - Handles login/logout mutations via generated services.
-- Persists tokens through the token store and triggers query invalidation on credential changes.
+- Persists tokens through the token store and immediately hydrates the current user via `loginTestToken`, seeding TanStack Query and context.
 - Exposes `isAdmin` and the current `UserRole` so views can branch instantly.
 - Subscribes to global `auth-error` events to reset session state.
 
@@ -49,8 +49,8 @@ This document outlines the authentication workflow for the Fleet ERP frontend. T
 1. User submits credentials.
 2. `AuthProvider` invokes `LoginService.loginLoginAccessToken`.
 3. The returned access token is stored via `setAccessToken`, updating both in-memory cache and `localStorage`.
-4. TanStack Query invalidates the `['currentUser']` cache key, triggering `LoginService.loginTestToken`.
-5. Authenticated user data (including `role`, `account_tier`, `kyc_status`, and balance) is cached and exposed through context.
+4. `AuthProvider` eagerly calls `LoginService.loginTestToken`, seeds the response into TanStack Query, and updates context state.
+5. Authenticated user data (including `role`, `account_tier`, `kyc_status`, and balance) is now available synchronously to route guards.
 6. The `login` helper returns the user's role so the UI can route admins to `/admin/dashboard` immediately.
 
 ### Protected Navigation
@@ -123,7 +123,7 @@ VITE_API_URL=http://localhost:8000
 Tokens are stored under the `access_token` key in `localStorage`. Helper functions in `client-config.ts` encapsulate reads and writes to keep the rest of the app agnostic of storage details.
 
 ## Testing Checklist
-- Login mutation returns an access token, resolves the user's role, and triggers a user refetch.
+- Login mutation returns an access token, resolves the user's role, and hydrates context with `loginTestToken`.
 - Protected routes redirect unauthenticated users to `/login`.
 - Role-guarded routes reject users without the required role.
 - `auth-error` events clear stored tokens and cached queries.
@@ -140,3 +140,6 @@ Tokens are stored under the `access_token` key in `localStorage`. Helper functio
 - Add social login providers.
 - Implement granular permission checks via TanStack Query scoped caches.
 - Persist auth state across tabs using the `storage` event.
+
+
+
