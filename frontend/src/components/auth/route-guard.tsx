@@ -24,15 +24,15 @@ export const RouteGuard = ({
       return;
     }
     if (requireAuth && !isAuthenticated) {
-      router.history.push(redirectTo);
+      router.navigate({ to: redirectTo });
     }
     if (allowedRoles && isAuthenticated && user && !allowedRoles.includes(user.role)) {
-      router.history.push(redirectTo);
+      router.navigate({ to: redirectTo });
     }
     if (!requireAuth && isAuthenticated) {
-      router.history.push(redirectTo);
+      router.navigate({ to: redirectTo });
     }
-  }, [allowedRoles, isAuthenticated, isLoading, redirectTo, requireAuth, router.history, user]);
+  }, [allowedRoles, isAuthenticated, isLoading, redirectTo, requireAuth, router, user]);
 
   if (isLoading) {
     return (

@@ -30,7 +30,7 @@ export const LoginSplitCarousel = () => {
         try {
             const role = await login(email, password);
             const destination = role === 'admin' ? '/admin/dashboard' : '/dashboard';
-            router.history.push(destination);
+            router.navigate({ to: destination });
         } catch (error) {
             setError(error instanceof Error ? error.message : 'Login failed');
         }

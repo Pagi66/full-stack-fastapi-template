@@ -11,6 +11,7 @@ from app.models import (
     Trade,
     TradeCreate,
     TradePublic,
+    Message,
     TradeStatus,
     TradeUpdate,
     TradesPublic,

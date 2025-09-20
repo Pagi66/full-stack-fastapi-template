@@ -11,6 +11,7 @@ from app.models import (
     DailyPerformanceCollection,
     DailyPerformanceCreate,
     DailyPerformancePublic,
+    Message,
     UserRole,
 )
 

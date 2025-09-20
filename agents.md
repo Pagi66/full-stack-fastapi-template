@@ -91,3 +91,5 @@
 - 2025-09-20T15:05:00+01:00 | Seeded demo admin/user accounts via init_db (backend/app/core/db.py) for easy role testing; rerun migrations then restart prestart to apply.
 - 2025-09-20T16:19:41+01:00 | Rebuilt backend image with latest schema, reran `docker compose up --build prestart` to run migrations and seed data (only passlib warning), confirmed `docker compose run --rm backend alembic current` reports b83cf1b7a582 head, then `docker compose down` to clean up; ready for UI smoke tests.
 - 2025-09-20T16:42:19+01:00 | Documented seeded admin/user credentials in Test Credentials section for quick iteration.
+- 2025-09-20T17:11:36+01:00 | Restarted containers, confirmed backend login request succeeds (200) via curl, fixed missing Message imports in performance/trades routes, and updated frontend auth routing to use router.navigate after diagnosing post-login redirect.
+

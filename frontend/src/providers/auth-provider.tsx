@@ -107,7 +107,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: ['currentUser'] });
       setUser(null);
-      router.history.push('/login');
+      router.navigate({ to: '/login' });
     },
   });
 

@@ -36,4 +36,4 @@ export { PrivateService } from './services/PrivateService';
 export { TransactionsService } from './services/TransactionsService';
 export { UsersService } from './services/UsersService';
 export { UtilsService } from './services/UtilsService';
-export { PortfolioService } from './services/PortfolioService';\r\n
+export { PortfolioService } from './services/PortfolioService';
