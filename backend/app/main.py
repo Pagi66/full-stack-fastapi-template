@@ -5,6 +5,7 @@ from starlette.middleware.cors import CORSMiddleware
 from app.api.main import api_router
 from app.core.config import settings
 from app.core.logging_config import configure_logging
+from app.core.metrics import MetricsMiddleware
 from app.core.rate_limiter import RateLimiterMiddleware
 
 
@@ -30,6 +31,9 @@ if settings.RATE_LIMIT_ENABLED:
         limit=settings.RATE_LIMIT_MAX_REQUESTS,
         window_seconds=settings.RATE_LIMIT_WINDOW_SECONDS,
     )
+
+if settings.METRICS_ENABLED:
+    app.add_middleware(MetricsMiddleware)
 
 # Set all CORS enabled origins
 if settings.all_cors_origins:

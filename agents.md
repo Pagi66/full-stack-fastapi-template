@@ -102,24 +102,27 @@
 - 2025-09-20T21:12:30+01:00 | Phase 2 steps 4-5: aligned backend tests with current behavior by updating user route assertions, rebuilt backend image, and re-ran docker compose exec backend bash scripts/tests-start.sh (55 passed, coverage 82%).
 - 2025-09-20T22:53:58+01:00 | Phase 3 steps 1-3: added structured logging + in-memory rate limiting middleware, converted email utilities to async dispatch, updated authentication docs, and ran docker compose exec backend bash scripts/tests-start.sh (55 passed, coverage 82%).
 - 2025-09-20T23:56:34+01:00 | Verified FIRST_SUPERUSER credentials via docker compose exec backend curl POST /api/v1/login/access-token (200, bearer token returned); no code changes required; docker compose watch remains stopped.
-
 - 2025-09-21T00:02:47+01:00 | Added backend/docs/OPERATIONS.md documenting logging, rate limiting, and async email safeguards; no tests run; docker compose watch remains stopped.
+- 2025-09-21T08:47:23+01:00 | Enabled Prometheus metrics middleware + /api/v1/utils/metrics endpoint, added Prometheus dependency/tests, refreshed backend/docs/OPERATIONS.md, and ran docker compose exec backend bash scripts/tests-start.sh (55 passed, coverage 82%); docker compose watch stopped.
+- 2025-09-21T09:03:20+01:00 | Instrumented SQLAlchemy queries for Prometheus, updated backend docs with dashboard/alert guidance, and re-ran docker compose exec backend bash scripts/tests-start.sh (55 passed, coverage 82%); docker compose watch still stopped.
+
 ## Session Summary
 
 ```json
 {
   "summary": {
-    "phase": "Backend Phase 3 docs",
+    "phase": "Backend observability extended",
     "keyChanges": [
-      "Documented structured logging, rate limiting, and async email in backend/docs/OPERATIONS.md",
-      "Verified FIRST_SUPERUSER login returns 200 with bearer token via docker compose exec curl"
+      "Added Prometheus SQLAlchemy instrumentation exposing app_db_query_* metrics",
+      "Expanded operations runbook with scrape configs, Grafana queries, and alert rules",
+      "Validated changes via docker compose exec backend bash scripts/tests-start.sh (55 passed, coverage 82%)"
     ],
     "tests": [
-      "docker compose exec backend curl http://localhost:8000/api/v1/login/access-token (200, bearer token issued)"
+      "docker compose exec backend bash scripts/tests-start.sh"
     ],
     "git": {
-      "status": "dirty (agents.md, backend/docs/OPERATIONS.md)",
-      "head": "83723caaed922d0765e92b9adbedc9c9a4382ee3"
+      "status": "dirty (agents.md, backend/app/core/metrics.py, backend/app/main.py, backend/app/core/config.py, backend/app/core/db.py, backend/app/api/routes/utils.py, backend/app/tests/api/routes/test_utils.py, backend/docs/OPERATIONS.md, backend/pyproject.toml, backend/uv.lock)",
+      "head": "52ad0e5bb83045eea810d5b3010cf79df576787e"
     }
   },
   "environment": {
@@ -128,7 +131,9 @@
     ],
     "credentialsTested": "illmindofbennyj@gmail.com / Konohamaru10"
   },
-  "nextSessionPrompt": "Ops doc added. Review rate limiter configuration in staging or expand observability metrics next; commit agents.md and backend/docs/OPERATIONS.md when ready."
+  "nextSessionPrompt": "Hook the metrics endpoint into your Prometheus/Grafana stack and consider adding database-specific dashboards or slow-query alert thresholds before pushing upstream."
 }
 ```
+
+
 

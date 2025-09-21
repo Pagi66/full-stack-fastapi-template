@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic.networks import EmailStr
 
 from app.api.deps import get_current_active_superuser
+from app.core.config import settings
+from app.core.metrics import render_metrics
 from app.models import Message
 from app.utils import generate_test_email, send_email
 
@@ -14,9 +16,8 @@ router = APIRouter(prefix="/utils", tags=["utils"])
     status_code=201,
 )
 async def test_email(email_to: EmailStr) -> Message:
-    """
-    Test emails.
-    """
+    """Test emails."""
+
     email_data = generate_test_email(email_to=email_to)
     await send_email(
         email_to=email_to,
@@ -29,3 +30,10 @@ async def test_email(email_to: EmailStr) -> Message:
 @router.get("/health-check/")
 async def health_check() -> bool:
     return True
+
+
+@router.get("/metrics", include_in_schema=False)
+async def metrics() -> Response:
+    if not settings.METRICS_ENABLED:
+        raise HTTPException(status_code=404, detail="Metrics disabled")
+    return render_metrics()

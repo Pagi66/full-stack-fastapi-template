@@ -1,10 +1,13 @@
 from sqlmodel import Session, create_engine, select
 
 from app import crud
+from app.core.metrics import register_sqlalchemy_metrics
 from app.core.config import settings
 from app.models import AccountTier, KycStatus, User, UserCreate, UserRole
 
 engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI))
+if settings.METRICS_ENABLED:
+    register_sqlalchemy_metrics(engine)
 
 
 # make sure all SQLModel models are imported (app.models) before initializing DB
