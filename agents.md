@@ -103,22 +103,23 @@
 - 2025-09-20T22:53:58+01:00 | Phase 3 steps 1-3: added structured logging + in-memory rate limiting middleware, converted email utilities to async dispatch, updated authentication docs, and ran docker compose exec backend bash scripts/tests-start.sh (55 passed, coverage 82%).
 - 2025-09-20T23:56:34+01:00 | Verified FIRST_SUPERUSER credentials via docker compose exec backend curl POST /api/v1/login/access-token (200, bearer token returned); no code changes required; docker compose watch remains stopped.
 
+- 2025-09-21T00:02:47+01:00 | Added backend/docs/OPERATIONS.md documenting logging, rate limiting, and async email safeguards; no tests run; docker compose watch remains stopped.
 ## Session Summary
 
 ```json
 {
   "summary": {
-    "phase": "Backend Phase 3 follow-up",
+    "phase": "Backend Phase 3 docs",
     "keyChanges": [
-      "Verified FIRST_SUPERUSER login returns 200 with bearer token via docker compose exec curl",
-      "No code changes required after credential check; operational safeguards remain in place"
+      "Documented structured logging, rate limiting, and async email in backend/docs/OPERATIONS.md",
+      "Verified FIRST_SUPERUSER login returns 200 with bearer token via docker compose exec curl"
     ],
     "tests": [
       "docker compose exec backend curl http://localhost:8000/api/v1/login/access-token (200, bearer token issued)"
     ],
     "git": {
-      "status": "dirty (agents.md updated)",
-      "head": "28df68aa49e37107844ca389b145a447d2969e89"
+      "status": "dirty (agents.md, backend/docs/OPERATIONS.md)",
+      "head": "83723caaed922d0765e92b9adbedc9c9a4382ee3"
     }
   },
   "environment": {
@@ -127,7 +128,7 @@
     ],
     "credentialsTested": "illmindofbennyj@gmail.com / Konohamaru10"
   },
-  "nextSessionPrompt": "Superuser login now succeeds (200). Commit agents.md or proceed to the next roadmap objective (e.g., expand ops docs or observability metrics)."
+  "nextSessionPrompt": "Ops doc added. Review rate limiter configuration in staging or expand observability metrics next; commit agents.md and backend/docs/OPERATIONS.md when ready."
 }
 ```
 
