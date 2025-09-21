@@ -105,24 +105,25 @@
 - 2025-09-21T00:02:47+01:00 | Added backend/docs/OPERATIONS.md documenting logging, rate limiting, and async email safeguards; no tests run; docker compose watch remains stopped.
 - 2025-09-21T08:47:23+01:00 | Enabled Prometheus metrics middleware + /api/v1/utils/metrics endpoint, added Prometheus dependency/tests, refreshed backend/docs/OPERATIONS.md, and ran docker compose exec backend bash scripts/tests-start.sh (55 passed, coverage 82%); docker compose watch stopped.
 - 2025-09-21T09:03:20+01:00 | Instrumented SQLAlchemy queries for Prometheus, updated backend docs with dashboard/alert guidance, and re-ran docker compose exec backend bash scripts/tests-start.sh (55 passed, coverage 82%); docker compose watch still stopped.
+- 2025-09-21T10:12:28+01:00 | Added /api/v1/admin/dashboard aggregates, new tests, and refreshed admin UI with totals, online badges, KYC and deposit approval workflows; docker compose exec backend bash scripts/tests-start.sh (55 passed, coverage 82%).
 
 ## Session Summary
 
 ```json
 {
   "summary": {
-    "phase": "Backend observability extended",
+    "phase": "Admin dashboard insights",
     "keyChanges": [
-      "Added Prometheus SQLAlchemy instrumentation exposing app_db_query_* metrics",
-      "Expanded operations runbook with scrape configs, Grafana queries, and alert rules",
-      "Validated changes via docker compose exec backend bash scripts/tests-start.sh (55 passed, coverage 82%)"
+      "Exposed /api/v1/admin/dashboard aggregates for totals, online users, pending KYC, and deposit queues with admin-only access",
+      "Extended the React admin dashboard with Untitled UI cards, online badges, KYC review table, and deposit approval actions",
+      "Added client helpers for the new admin endpoints and refreshed documentation/test coverage"
     ],
     "tests": [
-      "docker compose exec backend bash scripts/tests-start.sh"
+      "docker compose exec backend bash scripts/tests-start.sh (55 passed, coverage 82%)"
     ],
     "git": {
-      "status": "dirty (agents.md, backend/app/core/metrics.py, backend/app/main.py, backend/app/core/config.py, backend/app/core/db.py, backend/app/api/routes/utils.py, backend/app/tests/api/routes/test_utils.py, backend/docs/OPERATIONS.md, backend/pyproject.toml, backend/uv.lock)",
-      "head": "52ad0e5bb83045eea810d5b3010cf79df576787e"
+      "status": "dirty (backend/app/api/routes/admin.py, backend/app/api/main.py, backend/app/tests/api/routes/test_admin.py, frontend/src/api/models/AdminDashboardSummary.ts, frontend/src/api/services/AdminService.ts, frontend/src/api/services/TransactionsService.ts, frontend/src/pages/admin-dashboard.tsx)",
+      "head": "3216dd3900beebe57d480640b6490080d093d84c"
     }
   },
   "environment": {
@@ -131,9 +132,10 @@
     ],
     "credentialsTested": "illmindofbennyj@gmail.com / Konohamaru10"
   },
-  "nextSessionPrompt": "Hook the metrics endpoint into your Prometheus/Grafana stack and consider adding database-specific dashboards or slow-query alert thresholds before pushing upstream."
+  "nextSessionPrompt": "Hook the new dashboard widgets into your analytics stack or extend with additional metrics (e.g., withdrawal approvals) before pushing upstream."
 }
 ```
+
 
 
 

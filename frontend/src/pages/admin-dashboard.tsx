@@ -6,6 +6,8 @@ import {
 import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { Avatar } from "@/components/base/avatar/avatar";
+import { AdminService } from "@/api/services/AdminService";
+import { TransactionsService } from "@/api/services/TransactionsService";
 import {
   UsersService,
 } from "@/api/services/UsersService";
@@ -14,7 +16,6 @@ import { useAuth } from "@/providers/auth-provider";
 import {
   Activity,
   CheckVerified01,
-  Shield01,
   UserCheck02,
   Users03,
 } from "@untitledui/icons";
@@ -25,23 +26,38 @@ const formatCurrency = (value: number) =>
 const formatDateTime = (value?: string | null) =>
   value ? new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'N/A';
 
+const formatLabel = (value?: string | null) =>
+  value ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase() : '—';
+
 export const Dashboard = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedUser, setSelectedUser] = useState<UserPublic | null>(null);
 
+  const dashboardQuery = useQuery({
+    queryKey: ["admin-dashboard"],
+    queryFn: () => AdminService.adminGetDashboard(),
+  });
+
+  const dashboard = dashboardQuery.data;
   const usersQuery = useQuery({
     queryKey: ["admin-users"],
     queryFn: () => UsersService.usersReadUsers(0, 100),
   });
 
   const users = usersQuery.data?.data ?? [];
+  const onlineUsers = dashboard?.online_users ?? [];
+  const pendingKycQueue = dashboard?.pending_kyc ?? [];
+  const pendingDeposits = dashboard?.pending_deposits ?? [];
+
+  const onlineUserIds = useMemo(() => new Set(onlineUsers.map((entry) => entry.id)), [onlineUsers]);
 
   const approveKyc = useMutation({
     mutationFn: ({ id, status, notes }: { id: string; status: string; notes?: string | null }) =>
       UsersService.usersKycDecision(id, { status, notes }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
     },
   });
 
@@ -49,7 +65,8 @@ export const Dashboard = () => {
     mutationFn: ({ id, amount }: { id: string; amount: number }) =>
       UsersService.usersUpdateUserBalance(id, { amount }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
     },
   });
 
@@ -57,38 +74,73 @@ export const Dashboard = () => {
     mutationFn: ({ id, role, account_tier }: { id: string; role?: 'admin' | 'user'; account_tier?: string }) =>
       UsersService.usersUpdateRole(id, { role, account_tier }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
     },
   });
 
+  const updateTransactionStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: 'completed' | 'failed' }) =>
+      TransactionsService.transactionsUpdateStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+  });
+
+  const submitKycDecision = (id: string, status: 'approved' | 'rejected', notes?: string | null) => {
+    approveKyc.mutate({ id, status, notes });
+  };
+
+  const handleKycDecision = (target: UserPublic, status: 'approved' | 'rejected') => {
+    submitKycDecision(
+      target.id,
+      status,
+      status === 'rejected' ? 'Rejected via admin dashboard' : undefined,
+    );
+  };
+
+  const handleKycReviewApprove = (id: string) => submitKycDecision(id, 'approved');
+
+  const handleKycReviewReject = (id: string) => {
+    const note = window.prompt('Add rejection note', 'Documents incomplete');
+    submitKycDecision(id, 'rejected', note ?? 'Rejected via admin dashboard');
+  };
+
+  const handleDepositApproval = (id: string) =>
+    updateTransactionStatus.mutate({ id, status: 'completed' });
+
+  const handleDepositFailure = (id: string) =>
+    updateTransactionStatus.mutate({ id, status: 'failed' });
+
+  const isApprovingKyc = approveKyc.isPending;
+  const isUpdatingTransaction = updateTransactionStatus.isPending;
+
   const stats = useMemo(() => {
-    const total = users.length;
-    const active = users.filter((u) => u.is_active).length;
-    const kycPending = users.filter((u) => u.kyc_status === 'pending').length;
-    const admins = users.filter((u) => u.role === 'admin').length;
+    const totals = dashboard?.totals;
     return [
       {
         label: 'Total users',
-        value: total,
+        value: (totals?.total_users ?? users.length).toLocaleString(),
         icon: Users03,
       },
       {
-        label: 'Active accounts',
-        value: active,
-        icon: UserCheck02,
+        label: 'Total deposits',
+        value: formatCurrency(totals?.total_deposits ?? 0),
+        icon: Activity,
       },
       {
-        label: 'KYC pending',
-        value: kycPending,
-        icon: Shield01,
-      },
-      {
-        label: 'Administrators',
-        value: admins,
+        label: 'Total withdrawals',
+        value: formatCurrency(totals?.total_withdrawals ?? 0),
         icon: CheckVerified01,
       },
+      {
+        label: 'Online now',
+        value: onlineUsers.length.toString(),
+        icon: UserCheck02,
+      },
     ];
-  }, [users]);
+  }, [dashboard, onlineUsers.length, users.length]);
 
   const handleBalanceAdjust = (target: UserPublic) => {
     const input = window.prompt(`Set new balance for ${target.email}`, String(target.balance ?? 0));
@@ -116,9 +168,6 @@ export const Dashboard = () => {
     updateRole.mutate({ id: target.id, account_tier: input.toLowerCase() });
   };
 
-  const handleKycDecision = (target: UserPublic, status: 'approved' | 'rejected') => {
-    approveKyc.mutate({ id: target.id, status, notes: status === 'rejected' ? 'Rejected via admin dashboard' : undefined });
-  };
 
   return (
     <div className="min-h-screen bg-bg-secondary">
@@ -156,13 +205,200 @@ export const Dashboard = () => {
         <section className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
           <div className="mb-4 flex items-center justify-between">
             <div>
+              <h2 className="text-lg font-semibold text-fg-primary">Online users</h2>
+              <p className="text-sm text-fg-tertiary">Active within the last 15 minutes.</p>
+            </div>
+            <Badge type="color" size="sm" color="success">
+              {onlineUsers.length} online
+            </Badge>
+          </div>
+          {dashboardQuery.isLoading ? (
+            <div className="flex h-24 items-center justify-center text-sm text-fg-tertiary">
+              Loading online users...
+            </div>
+          ) : onlineUsers.length === 0 ? (
+            <p className="text-sm text-fg-tertiary">No users are currently online.</p>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
+              {onlineUsers.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex items-center justify-between rounded-md border border-border-secondary bg-bg-secondary/60 px-3 py-2"
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar size="xs" initials={entry.email.slice(0, 2).toUpperCase()} />
+                    <div>
+                      <p className="text-sm font-medium text-fg-primary">{entry.email}</p>
+                      <p className="text-xs text-fg-tertiary">
+                        {formatLabel(entry.account_tier)} · {formatLabel(entry.role)}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge type="color" size="sm" color="success">
+                    Online
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-fg-primary">KYC review queue</h2>
+                <p className="text-sm text-fg-tertiary">Review uploaded documents and approve or reject.</p>
+              </div>
+              <Badge type="color" size="sm" color="warning">
+                {pendingKycQueue.length} pending
+              </Badge>
+            </div>
+            {dashboardQuery.isLoading ? (
+              <div className="flex h-24 items-center justify-center text-sm text-fg-tertiary">
+                Loading KYC submissions...
+              </div>
+            ) : pendingKycQueue.length === 0 ? (
+              <p className="text-sm text-fg-tertiary">No KYC submissions waiting for review.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-border-secondary text-sm">
+                  <thead>
+                    <tr className="text-left text-xs uppercase text-fg-tertiary">
+                      <th className="px-3 py-2">Customer</th>
+                      <th className="px-3 py-2">Notes</th>
+                      <th className="px-3 py-2">Last activity</th>
+                      <th className="px-3 py-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-secondary text-fg-secondary">
+                    {pendingKycQueue.map((entry) => (
+                      <tr key={entry.id}>
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar size="xs" initials={entry.email.slice(0, 2).toUpperCase()} />
+                            <div>
+                              <p className="text-sm font-medium text-fg-primary">{entry.email}</p>
+                              <p className="text-xs text-fg-tertiary">{entry.full_name ?? '—'}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-sm">{entry.kyc_notes ?? 'Awaiting review'}</td>
+                        <td className="px-3 py-3 text-xs text-fg-tertiary">
+                          {formatDateTime(entry.last_login_at)}
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              color="primary"
+                              size="sm"
+                              disabled={isApprovingKyc}
+                              onClick={() => handleKycReviewApprove(entry.id)}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              color="primary-destructive"
+                              size="sm"
+                              disabled={isApprovingKyc}
+                              onClick={() => handleKycReviewReject(entry.id)}
+                            >
+                              Reject
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          <div className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-fg-primary">Deposit approvals</h2>
+                <p className="text-sm text-fg-tertiary">Approve cleared deposits so balances update immediately.</p>
+              </div>
+              <Badge type="color" size="sm" color="brand">
+                {pendingDeposits.length} awaiting
+              </Badge>
+            </div>
+            {dashboardQuery.isLoading ? (
+              <div className="flex h-24 items-center justify-center text-sm text-fg-tertiary">
+                Loading deposits...
+              </div>
+            ) : pendingDeposits.length === 0 ? (
+              <p className="text-sm text-fg-tertiary">No deposits are waiting for approval.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-border-secondary text-sm">
+                  <thead>
+                    <tr className="text-left text-xs uppercase text-fg-tertiary">
+                      <th className="px-3 py-2">Customer</th>
+                      <th className="px-3 py-2">Amount</th>
+                      <th className="px-3 py-2">Submitted</th>
+                      <th className="px-3 py-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-secondary text-fg-secondary">
+                    {pendingDeposits.map((entry) => (
+                      <tr key={entry.id}>
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar size="xs" initials={entry.email.slice(0, 2).toUpperCase()} />
+                            <div>
+                              <p className="text-sm font-medium text-fg-primary">{entry.email}</p>
+                              <p className="text-xs text-fg-tertiary">{formatLabel(entry.transaction_type)}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3">{formatCurrency(entry.amount)}</td>
+                        <td className="px-3 py-3 text-xs text-fg-tertiary">
+                          {formatDateTime(entry.created_at)}
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              color="primary"
+                              size="sm"
+                              disabled={isUpdatingTransaction}
+                              onClick={() => handleDepositApproval(entry.id)}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              color="secondary"
+                              size="sm"
+                              disabled={isUpdatingTransaction}
+                              onClick={() => handleDepositFailure(entry.id)}
+                            >
+                              Mark failed
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
               <h2 className="text-lg font-semibold text-fg-primary">User directory</h2>
               <p className="text-sm text-fg-tertiary">Approve KYC, adjust balances, or promote users.</p>
             </div>
             <ButtonUtility
               icon={Activity}
               tooltip="Refresh"
-              onClick={() => queryClient.invalidateQueries({ queryKey: ['admin-users'] })}
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+                queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
+              }}
             />
           </div>
 
@@ -191,7 +427,14 @@ export const Dashboard = () => {
                         <div className="flex items-center gap-3">
                           <Avatar size="xs" initials={item.email.slice(0, 2).toUpperCase()} />
                           <div>
-                            <p className="font-medium text-fg-primary">{item.email}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-fg-primary">{item.email}</p>
+                              {onlineUserIds.has(item.id) && (
+                                <Badge type="color" size="sm" color="success">
+                                  Online
+                                </Badge>
+                              )}
+                            </div>
                             <p className="text-xs text-fg-tertiary">{item.full_name ?? 'N/A'}</p>
                           </div>
                         </div>

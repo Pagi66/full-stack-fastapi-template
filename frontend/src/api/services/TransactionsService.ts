@@ -122,4 +122,31 @@ export class TransactionsService {
             },
         });
     }
+    /**
+     * Update transaction status. Admins can approve or fail pending transactions.
+     * @param id
+     * @param status
+     * @returns TransactionPublic Successful Response
+     * @throws ApiError
+     */
+    public static transactionsUpdateStatus(
+        id: string,
+        status: 'pending' | 'completed' | 'failed',
+    ): CancelablePromise<TransactionPublic> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/transactions/{id}/status',
+            path: {
+                'id': id,
+            },
+            query: {
+                'status': status,
+            },
+            errors: {
+                403: `Not enough permissions`,
+                404: `Transaction not found`,
+                422: `Validation Error`,
+            },
+        });
+    }
 }
