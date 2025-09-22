@@ -10,12 +10,14 @@ import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
 import { UntitledLogoMinimal } from "@/components/foundations/logo/untitledui-logo-minimal";
 import { ActiveUsersChart } from "@/components/shared-assets/illustrations/active-users-chart";
 import { UsersChart } from "@/components/shared-assets/illustrations/users-chart";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { useAuth } from "@/providers/auth-provider";
+import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/modal";
 
 export const LoginSplitCarousel = () => {
     const [error, setError] = useState<string | null>(null);
+    const [showSuccess, setShowSuccess] = useState(false);
     const router = useRouter();
     const { login, isLoading } = useAuth();
 
@@ -30,13 +32,16 @@ export const LoginSplitCarousel = () => {
         try {
             const role = await login(email, password);
             const destination = role === 'admin' ? '/admin/dashboard' : '/dashboard';
-            router.navigate({ to: destination });
+            setShowSuccess(true);
+            // Brief success confirmation, then navigate
+            setTimeout(() => router.navigate({ to: destination }), 900);
         } catch (error) {
             setError(error instanceof Error ? error.message : 'Login failed');
         }
     };
 
     return (
+        <>
         <section className="grid min-h-screen grid-cols-1 bg-primary lg:grid-cols-2">
             <div className="flex flex-col bg-primary">
                 <div className="flex flex-1 justify-center px-4 py-12 md:items-center md:px-8 md:py-32">
@@ -125,6 +130,22 @@ export const LoginSplitCarousel = () => {
                 </Carousel.Root>
             </div>
         </section>
+        {showSuccess && (
+            <ModalOverlay isOpen onOpenChange={(open) => !open && setShowSuccess(false)}>
+                <Modal>
+                    <Dialog className="max-w-sm rounded-2xl bg-primary p-6 text-center shadow-xl ring-1 ring-secondary">
+                        <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-utility-success-50 text-utility-success-700 ring-1 ring-utility-success-200">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" className="size-6">
+                                <path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" />
+                            </svg>
+                        </div>
+                        <h3 className="text-lg font-semibold text-primary">Success</h3>
+                        <p className="mt-1 text-sm text-tertiary">Logged in successfully. Redirecting…</p>
+                    </Dialog>
+                </Modal>
+            </ModalOverlay>
+        )}
+        </>
     );
 };
 

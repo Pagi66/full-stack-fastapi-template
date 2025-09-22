@@ -1,5 +1,5 @@
-import React from "react";
-import { motion } from "motion/react";
+import React, { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
     ArrowRight,
     BarChartSquare02,
@@ -486,23 +486,85 @@ const PricingSection = () => {
 };
 
 const TestimonialsSection = () => {
+    const avatars = useMemo(() => {
+        const roles = [
+            "Portfolio Manager",
+            "Quant Strategist",
+            "Risk Lead",
+            "Head of Trading",
+            "Investment Director",
+            "CIO",
+        ];
+        const comments = [
+            "Execution quality has been consistently top quartile across venues.",
+            "Crypto-only settlement means we can deploy capital instantly on triggers.",
+            "Guardrails kept the book inside mandate during stress scenarios.",
+            "Attribution views are clear enough for our LP updates.",
+            "Setup took under 48 hours including policy wiring.",
+            "Copy strategies mirror desk intent without custody risk.",
+            "Intraday rebalance removed our manual busywork.",
+            "Latency improvements showed up in our slippage metrics.",
+            "Risk pause rules fired precisely where expected.",
+            "Mobile alerts mapped perfectly to our escalation tree.",
+        ];
+        return Array.from({ length: 50 }, (_, i) => {
+            const id = (i % 70) + 1;
+            const first = ["Alex", "Sam", "Jordan", "Taylor", "Riley", "Morgan", "Casey", "Avery", "Cameron", "Drew"][i % 10];
+            const last = ["Chen", "Patel", "Garcia", "Nakamura", "Okoro", "Johansson", "Dubois", "Silva", "Hernández", "Ibrahim"][
+                (i * 3) % 10
+            ];
+            return {
+                name: `${first} ${last}`,
+                title: roles[i % roles.length],
+                quote: comments[i % comments.length],
+                src: `https://i.pravatar.cc/128?img=${id}`,
+            };
+        });
+    }, []);
+
+    const [indices, setIndices] = useState<[number, number]>([0, 1]);
+
+    useEffect(() => {
+        const pickTwo = () => {
+            const a = Math.floor(Math.random() * avatars.length);
+            let b = Math.floor(Math.random() * avatars.length);
+            if (b === a) b = (b + 1) % avatars.length;
+            setIndices([a, b]);
+        };
+        const id = setInterval(pickTwo, 5000);
+        return () => clearInterval(id);
+    }, [avatars.length]);
+
     return (
         <section id="testimonials" className="bg-primary py-16 md:py-24">
             <div className="mx-auto max-w-5xl px-4 md:px-8">
                 <h2 className="text-3xl font-semibold text-center text-primary md:text-4xl">Trusted by allocators on three continents.</h2>
                 <div className="mt-12 grid gap-6 md:grid-cols-2">
-                    {testimonials.map(({ quote, name, title }) => (
-                        <div key={name} className="flex h-full flex-col gap-4 rounded-3xl border border-border-secondary bg-surface-primary p-8 shadow-sm">
-                            <p className="text-lg leading-relaxed text-secondary">&ldquo;{quote}&rdquo;</p>
-                            <div className="flex items-center gap-3">
-                                <Avatar initials={name.split(" ").map((word) => word[0]).join("").slice(0, 2)} size="sm" />
-                                <div>
-                                    <p className="font-semibold text-primary">{name}</p>
-                                    <p className="text-sm text-secondary">{title}</p>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
+                    <AnimatePresence mode="popLayout">
+                        {[0, 1].map((slot) => {
+                            const idx = indices[slot];
+                            const a = avatars[idx];
+                            return (
+                                <motion.div
+                                    key={`${slot}-${idx}`}
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -8 }}
+                                    transition={{ duration: 0.35, ease: "easeOut" }}
+                                    className="flex h-full flex-col gap-4 rounded-3xl border border-border-secondary bg-surface-primary p-8 shadow-sm"
+                                >
+                                    <p className="text-lg leading-relaxed text-secondary">&ldquo;{a.quote}&rdquo;</p>
+                                    <div className="flex items-center gap-3">
+                                        <Avatar size="sm" src={a.src} alt={a.name} initials={a.name.split(" ").map((w) => w[0]).join("").slice(0, 2)} />
+                                        <div>
+                                            <p className="font-semibold text-primary">{a.name}</p>
+                                            <p className="text-sm text-secondary">{a.title}</p>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
+                    </AnimatePresence>
                 </div>
             </div>
         </section>
@@ -564,7 +626,7 @@ const CTASection = () => {
 export const Landing = () => {
     return (
         <div className="bg-primary text-primary">
-            <Header isFullWidth isSticky logoClassName="h-10 md:h-12" />
+            <Header isFullWidth isSticky logoClassName="h-12 md:h-16" />
             <main>
                 <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.6, ease: "easeOut" }}>
                     <HeroSection />

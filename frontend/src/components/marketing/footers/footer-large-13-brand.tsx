@@ -1,6 +1,7 @@
 import { PlayCircle } from "@untitledui/icons";
 import { Button } from "@/components/base/buttons/button";
 import { UntitledLogoMinimal } from "@/components/foundations/logo/untitledui-logo-minimal";
+import { IPhoneMockup } from "@/components/shared-assets/iphone-mockup";
 
 const trustLogos = [
     {
@@ -33,27 +34,22 @@ export const FooterLarge13Brand = () => {
             <div className="mx-auto max-w-container px-4 py-16 md:px-8 md:py-20">
                 <div className="grid gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-center">
                     <div className="relative overflow-hidden rounded-3xl border border-white/10 shadow-2xl">
-                        <div className="relative aspect-[16/9] w-full">
-                            <video
-                                className="absolute inset-0 h-full w-full object-cover"
-                                autoPlay
-                                muted
-                                loop
-                                playsInline
-                                src="/images/Apex-footer-video.mp4"
-                            >
-                                <source src="/images/Apex-footer-video.mp4" type="video/mp4" />
-                            </video>
+                        <div className="relative flex aspect-[16/9] w-full items-center justify-center bg-black/20">
+                            <IPhoneMockup
+                                image="/images/Tech Trading Platform Logo - Apex, Wordmark Style.svg"
+                                imageDark="/images/Tech Trading Platform Logo - Apex, Wordmark Style.svg"
+                                className="w-full max-w-72 drop-shadow-iphone-mockup"
+                            />
                             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
                             <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
-                                <p className="text-sm font-semibold uppercase tracking-wide text-white/70">In-platform execution feed</p>
+                                <p className="text-sm font-semibold uppercase tracking-wide text-white/70">In-platform execution mockup</p>
                                 <p className="mt-2 text-2xl font-semibold text-white sm:text-3xl">Apex automates entries, exits, and hedges in real time.</p>
                             </div>
                         </div>
                     </div>
 
                     <div className="space-y-6 text-left md:text-center lg:text-left">
-                        <UntitledLogoMinimal className="h-12 w-auto" />
+                        <UntitledLogoMinimal className="h-16 w-auto" />
                         <h2 className="text-3xl font-semibold leading-tight md:text-4xl">
                             Deploy institutional automation across your entire book.
                         </h2>
@@ -80,7 +76,7 @@ export const FooterLarge13Brand = () => {
                 </div>
 
                 <div className="mt-12 flex flex-col-reverse justify-between gap-4 border-t border-white/10 pt-8 text-sm text-white/60 md:mt-16 md:flex-row md:items-center md:gap-6">
-                    <p>© {year} Apex Trading. All rights reserved.</p>
+                    <p>ï¿½ {year} Apex Trading. All rights reserved.</p>
                     <ul className="flex flex-wrap gap-4 md:justify-end">
                         {[
                             { label: "Terms", href: "#" },
