@@ -10,7 +10,7 @@ const items = [
     },
     {
         title: "Customer stories",
-        subtitle: "Learn how our customers are using Untitled UI to 10x their growth.",
+        subtitle: "Learn how our customers are using Apex Trading to 10x their growth.",
         href: "/customer-stories",
         Icon: Stars02,
     },
@@ -49,3 +49,4 @@ export const DropdownMenuSimple = () => {
         </div>
     );
 };
+

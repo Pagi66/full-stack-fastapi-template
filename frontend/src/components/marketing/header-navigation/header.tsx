@@ -54,7 +54,7 @@ const MobileNavItem = (props: { className?: string; label: string; href?: string
     return (
         <li className="flex flex-col gap-0.5">
             <button
-                aria-expanded={isOpen ? "true" : "false"}
+                aria-haspopup="true"
                 onClick={() => setIsOpen(!isOpen)}
                 className="flex w-full items-center justify-between px-4 py-3 text-md font-semibold text-primary hover:bg-primary_hover"
             >
@@ -99,17 +99,22 @@ interface HeaderProps {
     items?: HeaderNavItem[];
     isFullWidth?: boolean;
     isFloating?: boolean;
+    /** When true, header stays visible at the top while scrolling */
+    isSticky?: boolean;
+    /** Optional className applied to both full and minimal logos for sizing */
+    logoClassName?: string;
     className?: string;
 }
 
-export const Header = ({ items = headerNavItems, isFullWidth, isFloating, className }: HeaderProps) => {
+export const Header = ({ items = headerNavItems, isFullWidth, isFloating, isSticky, logoClassName, className }: HeaderProps) => {
     const headerRef = useRef<HTMLElement>(null);
 
     return (
         <header
             ref={headerRef}
             className={cx(
-                "relative flex h-18 w-full items-center justify-center md:h-20",
+                "flex h-18 w-full items-center justify-center md:h-20",
+                isSticky ? "sticky top-0 z-50 bg-primary/85 backdrop-blur supports-[backdrop-filter]:bg-primary/70" : "relative",
                 isFloating && "h-16 md:h-19 md:pt-3",
                 isFullWidth && !isFloating ? "has-aria-expanded:bg-primary" : "max-md:has-aria-expanded:bg-primary",
                 className,
@@ -123,8 +128,8 @@ export const Header = ({ items = headerNavItems, isFullWidth, isFloating, classN
                     )}
                 >
                     <div className="flex flex-1 items-center gap-5">
-                        <UntitledLogo className="h-8 md:max-lg:hidden" />
-                        <UntitledLogoMinimal className="hidden h-8 md:inline-block lg:hidden" />
+                        <UntitledLogo className={cx("h-8 md:max-lg:hidden", logoClassName)} />
+                        <UntitledLogoMinimal className={cx("hidden h-8 md:inline-block lg:hidden", logoClassName)} />
 
                         {/* Desktop navigation */}
                         <nav className="max-md:hidden">

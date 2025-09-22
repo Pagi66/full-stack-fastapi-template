@@ -81,7 +81,7 @@ export const FooterLarge08Brand = () => {
                     </Form>
                 </div>
                 <div className="mt-12 flex flex-col-reverse justify-between gap-4 border-t border-brand_alt pt-8 md:mt-16 md:flex-row md:gap-6">
-                    <p className="text-md text-quaternary_on-brand">© 2077 Untitled UI. All rights reserved.</p>
+                    <p className="text-md text-quaternary_on-brand">&copy; {new Date().getFullYear()} Apex Trades. All rights reserved.</p>
 
                     <ul className="flex gap-4">
                         {[
@@ -113,3 +113,4 @@ export const FooterLarge08Brand = () => {
         </footer>
     );
 };
+

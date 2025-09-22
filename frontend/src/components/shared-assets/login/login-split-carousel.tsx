@@ -86,7 +86,7 @@ export const LoginSplitCarousel = () => {
                 </div>
 
                 <footer className="hidden p-8 pt-11 lg:block">
-                    <p className="text-sm text-tertiary">© Untitled UI 2077</p>
+                    <p className="text-sm text-tertiary">&copy; {new Date().getFullYear()} Apex Trades</p>
                 </footer>
             </div>
 
@@ -127,3 +127,4 @@ export const LoginSplitCarousel = () => {
         </section>
     );
 };
+

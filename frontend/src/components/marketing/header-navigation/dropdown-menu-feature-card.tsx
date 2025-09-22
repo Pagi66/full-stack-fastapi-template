@@ -5,7 +5,7 @@ import { FeatureCardVertical } from "./base-components/nav-menu-item-card";
 
 const items = [
     { title: "Blog", subtitle: "The latest industry new and guides curated by our expert team.", href: "/", Icon: BookClosed },
-    { title: "Customer stories", subtitle: "Learn how our customers are using Untitled UI to 10x their growth.", href: "/", Icon: Stars02 },
+    { title: "Customer stories", subtitle: "Learn how our customers are using Apex Trading to 10x their growth.", href: "/", Icon: Stars02 },
     { title: "Video tutorials", subtitle: "Get up and running on our newest features and in-depth guides.", href: "/", Icon: PlayCircle },
     { title: "Documentation", subtitle: "In-depth articles on our tools and technologies to empower teams.", href: "/", Icon: FileCode01 },
 ];
@@ -43,3 +43,4 @@ export const DropdownMenuFeatureCard = () => {
         </div>
     );
 };
+

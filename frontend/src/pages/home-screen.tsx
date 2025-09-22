@@ -14,7 +14,7 @@ export const HomeScreen = () => {
                     <UntitledLogoMinimal className="size-10" />
                 </div>
 
-                <h1 className="max-w-3xl text-center text-display-sm font-semibold text-primary">Untitled UI Vite starter kit</h1>
+                <h1 className="max-w-3xl text-center text-display-sm font-semibold text-primary">Apex Trading Vite starter kit</h1>
 
                 <p className="mt-2 max-w-xl text-center text-lg text-tertiary">
                     Get started by using existing components that came with this starter kit or add new ones:
@@ -37,7 +37,7 @@ export const HomeScreen = () => {
 
                 <div className="mt-6 flex items-center gap-3">
                     <Button
-                        href="https://www.untitledui.com/react/docs/introduction"
+                        href="#"
                         target="_blank"
                         rel="noopener noreferrer"
                         color="link-color"
@@ -48,7 +48,7 @@ export const HomeScreen = () => {
                     </Button>
                     <div className="h-px w-4 bg-brand-solid" />
                     <Button
-                        href="https://www.untitledui.com/react/resources/icons"
+                        href="#"
                         target="_blank"
                         rel="noopener noreferrer"
                         color="link-color"
@@ -59,7 +59,7 @@ export const HomeScreen = () => {
                     </Button>
                     <div className="h-px w-4 bg-brand-solid" />
                     <Button
-                        href="https://github.com/untitleduico/react/issues/"
+                        href="#"
                         target="_blank"
                         rel="noopener noreferrer"
                         color="link-color"
@@ -73,3 +73,5 @@ export const HomeScreen = () => {
         </div>
     );
 };
+
+

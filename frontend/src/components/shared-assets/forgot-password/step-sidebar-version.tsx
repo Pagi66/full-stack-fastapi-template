@@ -46,7 +46,7 @@ export const StepSidebarVersion = () => {
                     <Progress.IconsWithText type="featured-icon" size="md" items={steps} />
                 </div>
                 <footer className="mt-auto flex items-center justify-between p-8">
-                    <p className="text-sm text-tertiary">© Untitled UI 2077</p>
+                    <p className="text-sm text-tertiary">&copy; {new Date().getFullYear()} Apex Trades</p>
                     <span className="flex items-center justify-center gap-2">
                         <Mail01 className="size-4 text-fg-quaternary" />
                         <p className="text-sm text-tertiary">help@untitledui.com</p>
@@ -104,3 +104,4 @@ export const StepSidebarVersion = () => {
         </section>
     );
 };
+
