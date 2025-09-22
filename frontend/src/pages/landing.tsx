@@ -20,10 +20,12 @@ import { FeatureTextFeaturedIconTopCenteredBrand } from "@/components/marketing/
 import { SlideoutMenu } from "@/components/application/slideout-menus/slideout-menu";
 import { FooterLarge13Brand } from "@/components/marketing/footers/footer-large-13-brand";
 import { CryptoBadge } from "../components/base/badges/crypto-badge";
+import TradingViewWidget from "../components/trading-view-widget";
 
 const HERO_VIDEO_SRC = "/images/better-performance-illustration-video.mp4";
 const MARKETPLACE_VIDEO_SRC = "/images/Apex-footer-video.mp4";
 const SMART_VISUALIZER_SRC = "/images/smart-trading-visualizer.mp4";
+const WIDGETS_MAIN_VIDEO_SRC = "/images/widgets-main-video.hvc1.3010a527240f8051d301.mp4";
 
 const heroStats = [
     { label: "AUM orchestrated", value: "$2.4B" },
@@ -100,20 +102,7 @@ const partnerLogos = [
     "Atlas Family Office",
 ];
 
-const testimonials = [
-    {
-        quote:
-            "Apex rerouted our global macro book in milliseconds during the March volatility spike. The automation respected every committee control while outpacing manual desks.",
-        name: "Evelyn Cortez",
-        title: "Managing Partner, Meridian Quant",
-    },
-    {
-        quote:
-            "Copying Apex strategists let us launch a diversified digital asset sleeve without hiring another team. Reporting is turnkey for regulators and LPs.",
-        name: "Luca Moretti",
-        title: "Chief Investment Officer, Alpine Wealth",
-    },
-];
+// Removed legacy `testimonials` array; testimonials are now generated dynamically below.
 
 const faqs = [
     {
@@ -124,7 +113,7 @@ const faqs = [
     {
         question: "Does Apex take custody of client capital?",
         answer:
-            "No. You connect brokerages or prime accounts via secure API. Apex instructs executions and manages risk while you retain custody and can revoke access at any time.",
+            "No. You can fund your Apex wallet with cryptocurrency to begin algorithmic trading. Apex instructs executions and manages risk while you retain custody and can revoke access at any time.",
     },
     {
         question: "Can we embed Apex data into our dashboards?",
@@ -177,8 +166,20 @@ const pricingTiers = [
 
 const HeroSection = () => {
     return (
-        <section className="bg-primary">
-            <div className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-4 pb-20 pt-20 text-primary md:px-8 md:pt-24 lg:flex-row lg:items-center">
+        <section className="relative">
+            {/* Background image with blur */}
+            <div 
+                className="absolute inset-0 bg-cover bg-center"
+                style={{
+                    backgroundImage: "url('/images/videoframe_943.png')",
+                    filter: "blur(30px)",
+                    transform: "scale(1.1)"
+                }}
+            />
+            {/* Overlay to ensure text readability */}
+            <div className="absolute inset-0 bg-primary/80" />
+            
+            <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-12 px-4 pb-20 pt-20 text-primary md:px-8 md:pt-24 lg:flex-row lg:items-center">
                 <div className="flex-1 space-y-8">
                     <BadgeGroup size="lg" color="brand" theme="light" addonText="Live since 2016" iconTrailing={ArrowRight}>
                         Pro-grade automation for allocators
@@ -266,6 +267,28 @@ const HeroSection = () => {
         </section>
     );
 };
+
+const FullWidthVideoSection = () => {
+    return (
+        <section className="w-full bg-primary">
+            <div className="w-full">
+                <video 
+                    className="w-full h-auto max-h-[80vh] object-cover"
+                    autoPlay 
+                    loop 
+                    muted 
+                    playsInline 
+                    src={WIDGETS_MAIN_VIDEO_SRC}
+                >
+                    <source src={WIDGETS_MAIN_VIDEO_SRC} type="video/mp4" />
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+        </section>
+    );
+};
+
+
 
 const PartnersSection = () => {
     return (
@@ -627,9 +650,38 @@ export const Landing = () => {
     return (
         <div className="bg-primary text-primary">
             <Header isFullWidth isSticky logoClassName="h-12 md:h-16" />
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                    @keyframes marquee {
+                        0% { transform: translateX(0%); }
+                        100% { transform: translateX(-50%); }
+                    }
+                    .animate-marquee {
+                        animation: marquee 60s linear infinite;
+                    }
+                `
+            }} />
             <main>
+                {/* TradingView Widget between nav and hero */}
+                <div className="bg-gray-900 py-2">
+                    <div className="max-w-7xl mx-auto px-4">
+                        <TradingViewWidget />
+                    </div>
+                </div>
+                
                 <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.6, ease: "easeOut" }}>
                     <HeroSection />
+                </motion.div>
+                
+                {/* TradingView Widget above video section */}
+                <div className="bg-gray-800 py-3">
+                    <div className="max-w-7xl mx-auto px-4">
+                        <TradingViewWidget />
+                    </div>
+                </div>
+                
+                <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.6, ease: "easeOut", delay: 0.01 }}>
+                    <FullWidthVideoSection />
                 </motion.div>
                 <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.6, ease: "easeOut", delay: 0.05 }}>
                     <PartnersSection />
