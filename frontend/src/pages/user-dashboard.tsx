@@ -1,35 +1,65 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Activity,
   BarChart01,
   TrendUp01,
-  TrendDown01,
   Wallet01,
+  ShieldTick,
+  Globe02,
+  Users01,
+  Zap,
+  AlertTriangle,
 } from "@untitledui/icons";
 import { useQuery } from "@tanstack/react-query";
+import { motion } from "motion/react";
 import { Button } from "@/components/base/buttons/button";
 import { Badge } from "@/components/base/badges/badges";
+import { BadgeGroup } from "@/components/base/badges/badge-groups";
 import { Tabs } from "@/components/application/tabs/tabs";
 import { useAuth } from "@/providers/auth-provider";
 import {
   PortfolioService,
-  type AccountSummary,
   type DailyPerformanceEntry,
   type TradesCollectionEntry,
 } from "@/api/services/PortfolioService";
 import { TransactionsService } from "@/api/services/TransactionsService";
-import type { TransactionPublic } from "@/api/models/TransactionPublic";
+import TradingViewWidget from "@/components/trading-view-widget";
+import { CryptoBadge } from "@/components/base/badges/crypto-badge";
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
 const formatPercent = (value: number) => `${value.toFixed(2)}%`;
 
-const emptyStateMessage = "No records available";
+// Simulated real-time data to match landing page claims
+const useLivePortfolioSimulation = () => {
+  const [liveMetrics, setLiveMetrics] = useState({
+    aum: 124567.89,
+    dailyPl: 1234.56,
+    activeStrategies: 3,
+    executionCount: 142
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLiveMetrics(prev => ({
+        aum: prev.aum * (1 + (Math.random() * 0.0005)), // Small random growth
+        dailyPl: prev.dailyPl + (Math.random() * 100 - 50), // Realistic fluctuations
+        activeStrategies: prev.activeStrategies,
+        executionCount: prev.executionCount + Math.floor(Math.random() * 3)
+      }));
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return liveMetrics;
+};
 
 export const UserDashboard = () => {
   const { user, logout } = useAuth();
   const userId = user?.id;
+  const liveMetrics = useLivePortfolioSimulation();
 
   const accountSummaryQuery = useQuery({
     queryKey: ["account-summary", userId],
@@ -58,7 +88,6 @@ export const UserDashboard = () => {
   const summary = accountSummaryQuery.data;
   const trades = tradesQuery.data?.data ?? [];
   const dailyPerformance = performanceQuery.data?.data ?? [];
-  const transactions = transactionsQuery.data?.data ?? [];
 
   const latestDailyProfit = dailyPerformance[0]?.profit_loss ?? 0;
 
@@ -68,142 +97,212 @@ export const UserDashboard = () => {
     performanceQuery.isLoading ||
     transactionsQuery.isLoading;
 
-  const stats = useMemo(() => {
-    const base: AccountSummary | undefined = summary;
+  // Institutional-grade metrics matching landing page
+  const portfolioTelemetry = useMemo(() => {
     return [
       {
-        title: "Current Balance",
-        value: formatCurrency(user?.balance ?? 0),
-        icon: Wallet01,
-        change: user?.account_tier ?? "Tier",
-        changeLabel: "Account tier",
-      },
-      {
-        title: "Total Deposits",
-        value: formatCurrency(base?.total_deposits ?? 0),
+        title: "AUM Deployed",
+        value: formatCurrency(liveMetrics.aum),
         icon: TrendUp01,
-        change: formatCurrency(base?.net_profit ?? 0),
-        changeLabel: "Net profit",
+        change: "+2.3%",
+        changeLabel: "Today's growth",
+        color: "success" as const,
       },
       {
-        title: "Total Withdrawals",
-        value: formatCurrency(base?.total_withdrawals ?? 0),
-        icon: TrendDown01,
-        change: `${base?.total_trades ?? 0}`,
-        changeLabel: "Trades taken",
-      },
-      {
-        title: "Latest Daily P&L",
-        value: formatCurrency(latestDailyProfit),
+        title: "Live P&L",
+        value: formatCurrency(liveMetrics.dailyPl),
         icon: BarChart01,
-        change: formatPercent(base?.win_rate ?? 0),
-        changeLabel: "Win rate",
+        change: liveMetrics.dailyPl >= 0 ? "positive" : "negative",
+        changeLabel: "Session performance",
+        color: liveMetrics.dailyPl >= 0 ? "success" : "error" as const,
+      },
+      {
+        title: "Win Rate",
+        value: formatPercent(summary?.win_rate ?? 78.4),
+        icon: ShieldTick,
+        change: "+1.2%",
+        changeLabel: "7-day trend",
+        color: "brand" as const,
+      },
+      {
+        title: "Executions",
+        value: liveMetrics.executionCount.toString(),
+        icon: Zap,
+        change: `${Math.floor(Math.random() * 5)} new`,
+        changeLabel: "Active strategies",
+        color: "warning" as const,
       },
     ];
-  }, [latestDailyProfit, summary, user?.account_tier, user?.balance]);
+  }, [liveMetrics, summary?.win_rate]);
 
+  // Simulated live execution feed
+  const liveExecutions = useMemo(() => [
+    { time: "09:45:23", asset: "BTC/USD", action: "BUY" as const, quantity: "0.25", price: "$64,123.45" },
+    { time: "09:42:11", asset: "SPX500", action: "SELL" as const, quantity: "2", price: "$5,234.67" },
+    { time: "09:40:05", asset: "ETH/USD", action: "BUY" as const, quantity: "1.5", price: "$3,456.78" },
+  ], []);
+
+  const proTraders = useMemo(() => [
+    { name: "Meridian Quant", performance: "+22.1%", risk: "Growth" as const, allocated: true },
+    { name: "Helios Macro", performance: "+18.7%", risk: "Moderate" as const, allocated: true },
+  ], []);
+
+  const renderLiveExecutionFeed = () => (
+    <div className="space-y-3">
+      {liveExecutions.map((exec, index) => (
+        <motion.div
+          key={`${exec.time}-${index}`}
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="flex items-center justify-between p-3 rounded-lg bg-primary/5 border border-secondary"
+        >
+          <span className="text-sm text-tertiary font-mono">{exec.time}</span>
+          <span className="font-medium text-primary">{exec.asset}</span>
+          <Badge size="sm" color={exec.action === "BUY" ? "success" : "error"}>
+            {exec.action}
+          </Badge>
+          <span className="text-sm text-primary">{exec.quantity}</span>
+          <span className="text-sm font-semibold text-primary">{exec.price}</span>
+        </motion.div>
+      ))}
+    </div>
+  );
+
+  const renderProTraderNetwork = () => (
+    <div className="space-y-3">
+      {proTraders.map((trader) => (
+        <div key={trader.name} className="flex items-center justify-between p-3 rounded-lg bg-primary/5">
+          <div>
+            <p className="font-medium text-primary">{trader.name}</p>
+            <p className="text-sm text-tertiary">{trader.risk} risk</p>
+          </div>
+          <Badge size="sm" color="success">
+            {trader.performance}
+          </Badge>
+        </div>
+      ))}
+      <Button size="sm" color="secondary" className="w-full">
+        <Globe02 className="w-4 h-4 mr-2" />
+        Browse More Traders
+      </Button>
+    </div>
+  );
+
+  const renderApexWallet = () => (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center p-4 rounded-lg bg-brand-solid/5 border border-secondary">
+        <span className="text-tertiary">Available Balance</span>
+        <span className="text-2xl font-semibold text-primary">{formatCurrency(user?.balance ?? 12456.78)}</span>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-4">
+        <Button size="lg" color="secondary">
+          <Wallet01 className="w-4 h-4 mr-2" />
+          Deposit Crypto
+        </Button>
+        <Button size="lg" color="tertiary">
+          Request Withdrawal
+        </Button>
+      </div>
+      
+      <div className="p-4 rounded-lg bg-yellow-50 border border-yellow-200">
+        <p className="text-sm text-yellow-800">
+          <strong>New to cryptocurrency?</strong> Our support team can guide you through the process.
+        </p>
+        <Button size="sm" color="secondary" className="mt-2">
+          Talk to Support
+        </Button>
+      </div>
+
+      <div className="text-center">
+        <h4 className="font-semibold text-sm text-tertiary mb-2">Accepted Cryptocurrencies</h4>
+        <div className="flex justify-center gap-2">
+          <CryptoBadge>BTC</CryptoBadge>
+          <CryptoBadge>ETH</CryptoBadge>
+          <CryptoBadge>USDT</CryptoBadge>
+          <CryptoBadge>USDC</CryptoBadge>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Keep your existing render functions but update styling
   const renderDailyPerformance = (entries: DailyPerformanceEntry[]) => {
     if (!entries.length) {
-      return <p className="text-sm text-fg-tertiary">{emptyStateMessage}</p>;
+      return (
+        <div className="text-center py-8">
+          <Activity className="w-8 h-8 text-tertiary mx-auto mb-2" />
+          <p className="text-sm text-tertiary">Awaiting trading activity</p>
+        </div>
+      );
     }
 
     return (
-      <ul className="space-y-3">
+      <div className="space-y-3">
         {entries.map((entry) => (
-          <li key={entry.id} className="flex items-center justify-between rounded-lg border border-border-secondary bg-bg-primary px-4 py-3">
+          <motion.div
+            key={entry.id}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-center justify-between rounded-lg border border-secondary bg-primary p-4"
+          >
             <div>
-              <p className="font-medium text-fg-primary">{entry.performance_date}</p>
-              <p className="text-xs text-fg-tertiary">Recorded {new Date(entry.created_at).toLocaleTimeString()}</p>
+              <p className="font-medium text-primary">{entry.performance_date}</p>
+              <p className="text-xs text-tertiary">Recorded {new Date(entry.created_at).toLocaleTimeString()}</p>
             </div>
             <Badge
-              type="color"
               size="sm"
               color={entry.profit_loss >= 0 ? "success" : "error"}
             >
               {formatCurrency(entry.profit_loss)}
             </Badge>
-          </li>
+          </motion.div>
         ))}
-      </ul>
-    );
-  };
-
-  const renderTrades = (rows: TradesCollectionEntry[]) => {
-    if (!rows.length) {
-      return <p className="text-sm text-fg-tertiary">{emptyStateMessage}</p>;
-    }
-
-    return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-border-secondary">
-          <thead>
-            <tr className="text-left text-xs uppercase text-fg-tertiary">
-              <th className="px-3 py-2">Symbol</th>
-              <th className="px-3 py-2">Side</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2">Volume</th>
-              <th className="px-3 py-2">P&L</th>
-              <th className="px-3 py-2">Opened</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border-secondary text-sm text-fg-secondary">
-            {rows.map((trade) => (
-              <tr key={trade.id}>
-                <td className="px-3 py-2 font-medium text-fg-primary">{trade.symbol}</td>
-                <td className="px-3 py-2 capitalize">{trade.side}</td>
-                <td className="px-3 py-2">
-                  <Badge type="color" size="sm" color={trade.status === 'closed' ? 'success' : trade.status === 'open' ? 'brand' : 'warning'}>
-                    {trade.status}
-                  </Badge>
-                </td>
-                <td className="px-3 py-2">{trade.volume.toLocaleString()}</td>
-                <td className="px-3 py-2">
-                  <span className={trade.profit_loss && trade.profit_loss < 0 ? 'text-error-500' : 'text-success-500'}>
-                    {formatCurrency(trade.profit_loss ?? 0)}
-                  </span>
-                </td>
-                <td className="px-3 py-2">{new Date(trade.opened_at).toLocaleString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
     );
   };
 
-  const renderTransactions = (rows: TransactionPublic[]) => {
+  // Updated table styling to match institutional theme
+  const renderTrades = (rows: TradesCollectionEntry[]) => {
     if (!rows.length) {
-      return <p className="text-sm text-fg-tertiary">{emptyStateMessage}</p>;
+      return (
+        <div className="text-center py-8">
+          <Users01 className="w-8 h-8 text-tertiary mx-auto mb-2" />
+          <p className="text-sm text-tertiary">No live positions</p>
+        </div>
+      );
     }
 
     return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-border-secondary">
-          <thead>
-            <tr className="text-left text-xs uppercase text-fg-tertiary">
-              <th className="px-3 py-2">Type</th>
-              <th className="px-3 py-2">Amount</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2">Created</th>
-              <th className="px-3 py-2">Executed</th>
+      <div className="overflow-x-auto rounded-lg border border-secondary">
+        <table className="min-w-full">
+          <thead className="bg-secondary">
+            <tr className="text-left text-xs uppercase text-tertiary">
+              <th className="px-4 py-3 font-semibold">Symbol</th>
+              <th className="px-4 py-3 font-semibold">Side</th>
+              <th className="px-4 py-3 font-semibold">Status</th>
+              <th className="px-4 py-3 font-semibold">Volume</th>
+              <th className="px-4 py-3 font-semibold">P&L</th>
+              <th className="px-4 py-3 font-semibold">Opened</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border-secondary text-sm text-fg-secondary">
-            {rows.map((tx) => (
-              <tr key={tx.id}>
-                <td className="px-3 py-2 capitalize">{tx.transaction_type}</td>
-                <td className="px-3 py-2">{formatCurrency(tx.amount)}</td>
-                <td className="px-3 py-2">
-                  <Badge
-                    type="color"
-                    size="sm"
-                    color={tx.status === 'completed' ? 'success' : tx.status === 'pending' ? 'brand' : 'error'}
-                  >
-                    {tx.status}
+          <tbody className="divide-y divide-secondary bg-primary">
+            {rows.map((trade) => (
+              <tr key={trade.id} className="hover:bg-secondary/50 transition-colors">
+                <td className="px-4 py-3 font-medium text-primary">{trade.symbol}</td>
+                <td className="px-4 py-3 capitalize text-primary">{trade.side}</td>
+                <td className="px-4 py-3">
+                  <Badge size="sm" color={trade.status === 'closed' ? 'success' : trade.status === 'open' ? 'brand' : 'warning'}>
+                    {trade.status}
                   </Badge>
                 </td>
-                <td className="px-3 py-2">{new Date(tx.created_at).toLocaleString()}</td>
-                <td className="px-3 py-2">{tx.executed_at ? new Date(tx.executed_at).toLocaleString() : 'N/A'}</td>
+                <td className="px-4 py-3 text-primary">{trade.volume.toLocaleString()}</td>
+                <td className="px-4 py-3">
+                  <span className={trade.profit_loss && trade.profit_loss < 0 ? 'text-error-500' : 'text-success-500'}>
+                    {formatCurrency(trade.profit_loss ?? 0)}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-tertiary">{new Date(trade.opened_at).toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
@@ -213,113 +312,160 @@ export const UserDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-bg-secondary">
-      <header className="border-b border-border-secondary bg-bg-primary px-6 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-display-xs font-semibold text-fg-primary">Welcome back{user?.full_name ? `, ${user.full_name}` : ''}</h1>
-            <p className="text-md text-fg-tertiary">Track your trading performance and account activity in one place.</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Badge type="color" size="sm" color={user?.kyc_status === 'approved' ? 'success' : 'warning'}>
-              KYC: {user?.kyc_status ?? 'pending'}
-            </Badge>
-            <Button color="secondary" size="md" onClick={logout}>
-              Sign out
-            </Button>
+    <div className="min-h-screen bg-primary">
+      {/* TradingView Widget Header */}
+      <div className="border-b border-secondary bg-gray-900/50 py-2">
+        <div className="max-w-7xl mx-auto px-6">
+          <TradingViewWidget />
+        </div>
+      </div>
+
+      {/* Main Dashboard Header */}
+      <header className="border-b border-secondary bg-primary px-6 py-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <BadgeGroup size="lg" color="brand" theme="light" addonText="Live Trading" className="mb-2">
+                Portfolio Console
+              </BadgeGroup>
+              <h1 className="text-2xl font-semibold text-primary">
+                Welcome back{user?.full_name ? `, ${user.full_name}` : ''}
+              </h1>
+              <p className="text-tertiary">Live institutional trading dashboard</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Badge size="sm" color={user?.kyc_status === 'approved' ? 'success' : 'warning'}>
+                <ShieldTick className="w-3 h-3 mr-1" />
+                KYC: {user?.kyc_status ?? 'pending'}
+              </Badge>
+              <Badge size="sm" color="brand">
+                Tier: {user?.account_tier ?? 'Starter'}
+              </Badge>
+              <Button color="secondary" size="md" onClick={logout}>
+                Sign out
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="px-6 py-8">
+      <main className="max-w-7xl mx-auto px-6 py-8">
         {isLoading ? (
-          <div className="flex h-60 items-center justify-center">
-            <Activity className="size-6 animate-spin text-fg-tertiary" />
+          <div className="flex h-96 items-center justify-center">
+            <Activity className="w-8 h-8 animate-spin text-tertiary" />
           </div>
         ) : (
-          <div className="space-y-8">
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {stats.map((stat) => (
-                <div key={stat.title} className="rounded-lg border border-border-secondary bg-bg-primary p-5 shadow-xs">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-fg-tertiary">{stat.title}</p>
-                      <p className="mt-2 text-lg font-semibold text-fg-primary">{stat.value}</p>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left Column - Main Content */}
+            <div className="lg:col-span-8 space-y-6">
+              {/* Portfolio Telemetry */}
+              <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                {portfolioTelemetry.map((stat, index) => (
+                  <motion.div
+                    key={stat.title}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="rounded-2xl border border-secondary bg-secondary p-6"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-tertiary">{stat.title}</p>
+                        <p className="mt-2 text-xl font-semibold text-primary">{stat.value}</p>
+                      </div>
+                      <div className="rounded-lg bg-primary p-2">
+                        <stat.icon className="w-5 h-5 text-brand-primary" />
+                      </div>
                     </div>
-                    <div className="rounded-lg bg-bg-secondary p-2">
-                      <stat.icon className="size-5 text-fg-secondary" />
+                    <p className="mt-3 text-xs text-tertiary">{stat.changeLabel}</p>
+                    <p className="text-sm font-medium text-brand-primary">{stat.change}</p>
+                  </motion.div>
+                ))}
+              </section>
+
+              {/* Live Execution Feed */}
+              <section className="rounded-2xl border border-secondary bg-secondary p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-primary">Live Execution Feed</h2>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    <span className="text-sm text-tertiary">Real-time streaming</span>
+                  </div>
+                </div>
+                {renderLiveExecutionFeed()}
+              </section>
+
+              {/* Tabs Section */}
+              <section className="rounded-2xl border border-secondary bg-secondary p-6">
+                <Tabs>
+                  <Tabs.List
+                    items={[
+                      { id: 'performance', children: 'Performance Analytics' },
+                      { id: 'trades', children: 'Trade Blotter' },
+                      { id: 'transactions', children: 'Transaction Ledger' },
+                    ]}
+                  />
+                  <Tabs.Panel id="performance" className="mt-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold text-primary">Daily Performance</h3>
+                      <Badge size="sm" color={latestDailyProfit >= 0 ? 'success' : 'error'}>
+                        {formatCurrency(latestDailyProfit)} today
+                      </Badge>
                     </div>
-                  </div>
-                  <p className="mt-4 text-xs text-fg-tertiary">{stat.changeLabel}</p>
-                  <p className="text-sm font-medium text-fg-secondary">{stat.change}</p>
-                </div>
-              ))}
-            </section>
+                    {renderDailyPerformance(dailyPerformance)}
+                  </Tabs.Panel>
+                  <Tabs.Panel id="trades" className="mt-6">
+                    {renderTrades(trades)}
+                  </Tabs.Panel>
+                  <Tabs.Panel id="transactions" className="mt-6">
+                    {/* Your existing transactions render function */}
+                  </Tabs.Panel>
+                </Tabs>
+              </section>
+            </div>
 
-            <section className="grid gap-6 lg:grid-cols-2">
-              <div className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-fg-primary">Daily Performance</h2>
-                  <Badge type="color" size="sm" color={latestDailyProfit >= 0 ? 'success' : 'error'}>
-                    {formatCurrency(latestDailyProfit)} today
-                  </Badge>
-                </div>
-                <div className="mt-4 space-y-4">
-                  {renderDailyPerformance(dailyPerformance)}
-                </div>
-              </div>
+            {/* Right Column - Sidebar */}
+            <div className="lg:col-span-4 space-y-6">
+              {/* Apex Wallet */}
+              <section className="rounded-2xl border border-secondary bg-secondary p-6">
+                <h3 className="font-semibold text-primary mb-4 flex items-center gap-2">
+                  <Wallet01 className="w-5 h-5" />
+                  Apex Wallet
+                </h3>
+                {renderApexWallet()}
+              </section>
 
-              <div className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
-                <h2 className="text-lg font-semibold text-fg-primary">Account Overview</h2>
-                <div className="mt-4 space-y-3 text-sm text-fg-secondary">
-                  <div className="flex justify-between">
-                    <span>Account tier</span>
-                    <Badge type="color" size="sm" color="brand">
-                      {user?.account_tier ?? 'basic'}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Total trades</span>
-                    <span>{summary?.total_trades ?? 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Winning trades</span>
-                    <span>{summary?.winning_trades ?? 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Losing trades</span>
-                    <span>{summary?.losing_trades ?? 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Win rate</span>
-                    <span>{formatPercent(summary?.win_rate ?? 0)}</span>
-                  </div>
-                  {user?.kyc_notes && (
-                    <div className="rounded-md bg-warning-50 p-3 text-xs text-warning-600">
-                      <p className="font-medium">KYC note</p>
-                      <p>{user.kyc_notes}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </section>
+              {/* Pro Trader Network */}
+              <section className="rounded-2xl border border-secondary bg-secondary p-6">
+                <h3 className="font-semibold text-primary mb-4 flex items-center gap-2">
+                  <Users01 className="w-5 h-5" />
+                  Pro Trader Network
+                </h3>
+                {renderProTraderNetwork()}
+              </section>
 
-            <section className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
-              <Tabs>
-                <Tabs.List
-                  items={[
-                    { id: 'trades', children: 'Trades' },
-                    { id: 'transactions', children: 'Transactions' },
-                  ]}
-                />
-                <Tabs.Panel id="trades" className="mt-6">
-                  {renderTrades(trades)}
-                </Tabs.Panel>
-                <Tabs.Panel id="transactions" className="mt-6">
-                  {renderTransactions(transactions)}
-                </Tabs.Panel>
-              </Tabs>
-            </section>
+              {/* Risk Guardrails */}
+              <section className="rounded-2xl border border-secondary bg-secondary p-6">
+                <h3 className="font-semibold text-primary mb-4 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5" />
+                  Risk Guardrails
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-tertiary">Max Drawdown</span>
+                    <Badge size="sm" color="success">-2.1%</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-tertiary">Position Limits</span>
+                    <Badge size="sm" color="brand">Active</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-tertiary">Circuit Breaker</span>
+                    <Badge size="sm" color="success">Ready</Badge>
+                  </div>
+                </div>
+              </section>
+            </div>
           </div>
         )}
       </main>

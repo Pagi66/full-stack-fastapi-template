@@ -169,11 +169,9 @@ const HeroSection = () => {
         <section className="relative">
             {/* Background image with blur */}
             <div 
-                className="absolute inset-0 bg-cover bg-center"
+                className="absolute inset-0 bg-cover bg-center blur-[30px] scale-110"
                 style={{
-                    backgroundImage: "url('/images/videoframe_943.png')",
-                    filter: "blur(30px)",
-                    transform: "scale(1.1)"
+                    backgroundImage: "url('/images/videoframe_943.png')"
                 }}
             />
             {/* Overlay to ensure text readability */}
@@ -663,7 +661,7 @@ export const Landing = () => {
             }} />
             <main>
                 {/* TradingView Widget between nav and hero */}
-                <div className="bg-gray-900 py-2">
+                <div className="bg-gray-900/50 py-2">
                     <div className="max-w-7xl mx-auto px-4">
                         <TradingViewWidget />
                     </div>
@@ -674,7 +672,7 @@ export const Landing = () => {
                 </motion.div>
                 
                 {/* TradingView Widget above video section */}
-                <div className="bg-gray-800 py-3">
+                <div className="bg-gray-800/50 py-3">
                     <div className="max-w-7xl mx-auto px-4">
                         <TradingViewWidget />
                     </div>

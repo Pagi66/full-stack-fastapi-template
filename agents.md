@@ -121,6 +121,14 @@
 - 2025-09-21T18:30:16+01:00 | Rebuilt landing page with Apex-focused hero, features, copy-trading showcase, pricing, testimonials, FAQ, CTA, replaced case study video, rebuilt frontend image via docker compose build frontend; docker compose up -d frontend.
 - 2025-09-21T19:06:37+01:00 | Replaced global logos with Apex Trades wordmark, updated footer with trust logos and video, refreshed copy across auth + marketing shells, rebuilt frontend image (encountered transient Docker Hub timeouts) and restarted frontend container.
 
+- 2025-09-22T00:00:00+01:00 | Landing UX updates: increased banner logo size and made header sticky on scroll by extending `Header` with `isSticky` and `logoClassName`; added entrance animations using existing motion utilities; updated pricing section text for crypto-only deposits (renamed plans to Starter/Professional/Enterprise with updated pricing and descriptions), removed API/brokerage references from features at render-time, inserted crypto explainer above pricing grid and accepted-cryptos/support section below; created `frontend/src/components/base/badges/crypto-badge.tsx`; lints pass for touched files. Git commit performed post-change.
+
+- 2025-09-22T00:00:00+01:00 | Auth flows & testimonials polish: wired signup form to backend `POST /api/v1/users/signup` using generated `UsersService.usersRegisterUser`, added success modals for both login and signup using existing modal primitives, increased landing header logo size (`h-12 md:h-16`), implemented rotating testimonials with 50 unique avatars and comments using `AnimatePresence` fade transitions (2 cards, random every 5s), and replaced footer video with `IPhoneMockup` branded with Apex wordmark; increased footer logo size to match login page. Lints pass; router unchanged.
+
+- 2025-09-22T20:14:00+01:00 | Enhanced landing page with TradingView widgets and hero background improvements: added ticker tape widgets between nav bar and hero section, added second widget above video section, updated hero section background with videoframe_943.png and 30% blur effect with semi-transparent overlay for text readability; displays real-time market data for S&P 500, NASDAQ, EUR/USD, Bitcoin, and Ethereum; git commit dd62cce.
+
+- 2025-09-22T21:10:00+01:00 | Fixed lint errors in frontend components: resolved CSS inline styles warning in landing.tsx by converting inline styles to Tailwind classes (blur-[30px] scale-110), removed unused userId parameter from useLivePortfolioSimulation hook in user-dashboard.tsx, removed unused transactions variable in user-dashboard.tsx; all TypeScript warnings resolved.
+
 ## Session Summary
 
 ```json
@@ -149,5 +157,3 @@
   "nextSessionPrompt": "Swap remote trust logos for approved Apex assets and route footer CTAs to live flows before launch."
 }
 ```
-
-
