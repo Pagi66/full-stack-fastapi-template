@@ -128,8 +128,8 @@ export const Header = ({ items = headerNavItems, isFullWidth, isFloating, isStic
                     )}
                 >
                     <div className="flex flex-1 items-center gap-5">
-                        <UntitledLogo className={cx("h-8 md:max-lg:hidden", logoClassName)} />
-                        <UntitledLogoMinimal className={cx("hidden h-8 md:inline-block lg:hidden", logoClassName)} />
+                        <UntitledLogo className={cx("w-[165px] h-[115.5px] md:max-lg:hidden", logoClassName)} />
+                        <UntitledLogoMinimal className={cx("hidden w-[165px] h-[115.5px] md:inline-block lg:hidden", logoClassName)} />
 
                         {/* Desktop navigation */}
                         <nav className="max-md:hidden">

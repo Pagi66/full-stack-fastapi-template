@@ -8,7 +8,7 @@ import {
   Globe02,
   Users01,
   Zap,
-  AlertTriangle,
+  Settings01,
 } from "@untitledui/icons";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
@@ -168,63 +168,6 @@ export const UserDashboard = () => {
     </div>
   );
 
-  const renderProTraderNetwork = () => (
-    <div className="space-y-3">
-      {proTraders.map((trader) => (
-        <div key={trader.name} className="flex items-center justify-between p-3 rounded-lg bg-primary/5">
-          <div>
-            <p className="font-medium text-primary">{trader.name}</p>
-            <p className="text-sm text-tertiary">{trader.risk} risk</p>
-          </div>
-          <Badge size="sm" color="success">
-            {trader.performance}
-          </Badge>
-        </div>
-      ))}
-      <Button size="sm" color="secondary" className="w-full">
-        <Globe02 className="w-4 h-4 mr-2" />
-        Browse More Traders
-      </Button>
-    </div>
-  );
-
-  const renderApexWallet = () => (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center p-4 rounded-lg bg-brand-solid/5 border border-secondary">
-        <span className="text-tertiary">Available Balance</span>
-        <span className="text-2xl font-semibold text-primary">{formatCurrency(user?.balance ?? 12456.78)}</span>
-      </div>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <Button size="lg" color="secondary">
-          <Wallet01 className="w-4 h-4 mr-2" />
-          Deposit Crypto
-        </Button>
-        <Button size="lg" color="tertiary">
-          Request Withdrawal
-        </Button>
-      </div>
-      
-      <div className="p-4 rounded-lg bg-yellow-50 border border-yellow-200">
-        <p className="text-sm text-yellow-800">
-          <strong>New to cryptocurrency?</strong> Our support team can guide you through the process.
-        </p>
-        <Button size="sm" color="secondary" className="mt-2">
-          Talk to Support
-        </Button>
-      </div>
-
-      <div className="text-center">
-        <h4 className="font-semibold text-sm text-tertiary mb-2">Accepted Cryptocurrencies</h4>
-        <div className="flex justify-center gap-2">
-          <CryptoBadge>BTC</CryptoBadge>
-          <CryptoBadge>ETH</CryptoBadge>
-          <CryptoBadge>USDT</CryptoBadge>
-          <CryptoBadge>USDC</CryptoBadge>
-        </div>
-      </div>
-    </div>
-  );
 
   // Keep your existing render functions but update styling
   const renderDailyPerformance = (entries: DailyPerformanceEntry[]) => {
@@ -314,9 +257,9 @@ export const UserDashboard = () => {
   return (
     <div className="min-h-screen bg-primary">
       {/* TradingView Widget Header */}
-      <div className="border-b border-secondary bg-gray-900/50 py-2">
+      <div className="border-b border-secondary bg-gray-900/50 py-3">
         <div className="max-w-7xl mx-auto px-6">
-          <TradingViewWidget />
+          <TradingViewWidget compact={true} />
         </div>
       </div>
 
@@ -424,47 +367,40 @@ export const UserDashboard = () => {
               </section>
             </div>
 
-            {/* Right Column - Sidebar */}
-            <div className="lg:col-span-4 space-y-6">
-              {/* Apex Wallet */}
-              <section className="rounded-2xl border border-secondary bg-secondary p-6">
-                <h3 className="font-semibold text-primary mb-4 flex items-center gap-2">
-                  <Wallet01 className="w-5 h-5" />
-                  Apex Wallet
-                </h3>
-                {renderApexWallet()}
-              </section>
-
-              {/* Pro Trader Network */}
-              <section className="rounded-2xl border border-secondary bg-secondary p-6">
-                <h3 className="font-semibold text-primary mb-4 flex items-center gap-2">
-                  <Users01 className="w-5 h-5" />
-                  Pro Trader Network
-                </h3>
-                {renderProTraderNetwork()}
-              </section>
-
-              {/* Risk Guardrails */}
-              <section className="rounded-2xl border border-secondary bg-secondary p-6">
-                <h3 className="font-semibold text-primary mb-4 flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5" />
-                  Risk Guardrails
-                </h3>
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span className="text-tertiary">Max Drawdown</span>
-                    <Badge size="sm" color="success">-2.1%</Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-tertiary">Position Limits</span>
-                    <Badge size="sm" color="brand">Active</Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-tertiary">Circuit Breaker</span>
-                    <Badge size="sm" color="success">Ready</Badge>
-                  </div>
+            {/* Right Column - Sidebar Navigation */}
+            <div className="lg:col-span-4">
+              <div className="w-full bg-secondary border border-border-secondary rounded-2xl p-6">
+                <div className="mb-6">
+                  <h2 className="text-lg font-semibold text-primary">Apex Console</h2>
+                  <p className="text-sm text-tertiary">Institutional Trading</p>
                 </div>
-              </section>
+                
+                <nav className="space-y-2">
+                  {[
+                    { icon: BarChart01, label: "Portfolio Overview", href: "/dashboard", active: true },
+                    { icon: Wallet01, label: "Apex Wallet", href: "/dashboard/wallet" },
+                    { icon: Users01, label: "Pro Trader Network", href: "/dashboard/copy-trading" },
+                    { icon: Globe02, label: "Market Analysis", href: "/dashboard/markets" },
+                    { icon: Zap, label: "Live Executions", href: "/dashboard/executions" },
+                    { icon: Activity, label: "Trade History", href: "/dashboard/history" },
+                    { icon: ShieldTick, label: "Risk Management", href: "/dashboard/risk" },
+                    { icon: Settings01, label: "Account Settings", href: "/dashboard/settings" },
+                  ].map((item) => (
+                    <a
+                      key={item.label}
+                      href={item.href}
+                      className={`flex items-center gap-3 p-3 rounded-lg text-sm transition-colors ${
+                        item.active 
+                          ? 'bg-brand-solid/10 text-brand-solid border border-brand-solid/20' 
+                          : 'text-tertiary hover:bg-primary hover:text-primary'
+                      }`}
+                    >
+                      <item.icon className="w-4 h-4" />
+                      {item.label}
+                    </a>
+                  ))}
+                </nav>
+              </div>
             </div>
           </div>
         )}

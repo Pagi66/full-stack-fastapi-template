@@ -95,11 +95,11 @@ const metrics = [
 ];
 
 const partnerLogos = [
-    "Meridian Quant",
-    "Summit Digital",
-    "Northwind Capital",
-    "Helios Macro",
-    "Atlas Family Office",
+    { name: "Capital.com", src: "/images/capital-com.48f5a48bf8bb94abdd79.svg" },
+    { name: "Eightcap", src: "/images/eight-cap.ed94589e77b3accb107b.svg" },
+    { name: "FXCM", src: "/images/fxcm-black-and-white.8ea065694b0ae08a6207.svg" },
+    { name: "OANDA", src: "/images/oanda-black-and-white.a2e7101f8e405cd8a264.svg" },
+    { name: "OKX", src: "/images/okx.9c61d4df3f6d2ca84d85.svg" },
 ];
 
 // Removed legacy `testimonials` array; testimonials are now generated dynamically below.
@@ -290,14 +290,18 @@ const FullWidthVideoSection = () => {
 
 const PartnersSection = () => {
     return (
-        <section className="bg-secondary py-12">
-            <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-6 px-4 text-center text-tertiary md:px-8">
-                <p className="text-sm font-semibold uppercase tracking-wide">Trusted by allocators across three continents</p>
-                <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm md:text-base">
+        <section className="bg-secondary py-8 md:py-12">
+            <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-4 md:gap-6 px-4 text-center text-tertiary md:px-8">
+                <p className="text-xs md:text-sm font-semibold uppercase tracking-wide">Trusted by allocators across three continents</p>
+                <div className="flex flex-wrap items-center justify-center gap-4 md:gap-x-8 md:gap-y-4">
                     {partnerLogos.map((logo) => (
-                        <span key={logo} className="rounded-full bg-primary px-4 py-2 text-tertiary">
-                            {logo}
-                        </span>
+                        <div key={logo.name} className="flex items-center justify-center">
+                            <img 
+                                src={logo.src} 
+                                alt={logo.name}
+                                className="h-6 md:h-8 lg:h-10 w-auto grayscale hover:grayscale-0 transition-all duration-300"
+                            />
+                        </div>
                     ))}
                 </div>
             </div>
@@ -660,21 +664,14 @@ export const Landing = () => {
                 `
             }} />
             <main>
-                {/* TradingView Widget between nav and hero */}
-                <div className="bg-gray-900/50 py-2">
-                    <div className="max-w-7xl mx-auto px-4">
-                        <TradingViewWidget />
-                    </div>
-                </div>
-                
                 <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.6, ease: "easeOut" }}>
                     <HeroSection />
                 </motion.div>
                 
-                {/* TradingView Widget above video section */}
-                <div className="bg-gray-800/50 py-3">
+                {/* TradingView Widget immediately after hero section */}
+                <div className="border-b border-secondary bg-gray-900/50 py-3">
                     <div className="max-w-7xl mx-auto px-4">
-                        <TradingViewWidget />
+                        <TradingViewWidget compact={true} />
                     </div>
                 </div>
                 

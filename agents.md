@@ -129,6 +129,18 @@
 
 - 2025-09-22T21:10:00+01:00 | Fixed lint errors in frontend components: resolved CSS inline styles warning in landing.tsx by converting inline styles to Tailwind classes (blur-[30px] scale-110), removed unused userId parameter from useLivePortfolioSimulation hook in user-dashboard.tsx, removed unused transactions variable in user-dashboard.tsx; all TypeScript warnings resolved.
 
+- 2025-09-22T22:45:00+01:00 | Rebuilt frontend Docker image and started containers with docker compose watch: fixed TypeScript error in login-split-carousel.tsx (removed unused useEffect import), successfully built frontend image, and launched all services with docker compose watch; all containers running and ready for testing.
+
+- 2025-09-22T23:30:00+01:00 | Successfully implemented and tested signup workflow end-to-end: verified frontend signup form is properly wired to backend POST /api/v1/users/signup endpoint, tested user creation and login flow with test credentials, confirmed JWT token generation and authentication; signup workflow fully functional.
+
+- 2025-09-23T00:42:00+01:00 | Phase 1 - Frontend Token Plumbing & Docs: Completed wiring persisted tokens into generated client (frontend/src/api/client-config.ts), verified OpenAPI.ts and request.ts token handling logic, updated TanStack Query auth hooks for proper Authorization header injection, refreshed frontend/docs/AUTHENTICATION.md to reflect current implementation; fixed TypeScript error in token resolver function; authentication system ready for testing.
+
+- 2025-09-23T04:45:00+01:00 | Added TradingView Widget to User Dashboard: Updated TradingViewWidget component (frontend/src/components/trading-view-widget.tsx) to support compact mode with configurable date range, chart visibility, and dimensions; integrated widget into user dashboard immediately after main header; replaced sidebar content with comprehensive navigation menu featuring 8 sections (Portfolio Overview, Apex Wallet, Pro Trader Network, Market Analysis, Live Executions, Trade History, Risk Management, Account Settings).
+
+- 2025-09-23T05:00:00+01:00 | Modified Landing Page TradingView Integration: Removed all price tickers (multiple TradingViewWidget instances) from landing page; kept only one TradingViewWidget component placed immediately after hero section; used compact mode for better visual integration with landing page design.
+
+- 2025-09-23T05:10:00+01:00 | PENDING TESTS: TradingView widget integration requires end-to-end testing to verify real-time market data displays correctly in both user dashboard and landing page contexts; sidebar navigation functionality needs validation for proper routing and active state management.
+
 ## Session Summary
 
 ```json

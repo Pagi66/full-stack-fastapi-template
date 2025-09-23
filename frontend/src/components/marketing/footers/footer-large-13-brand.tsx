@@ -49,7 +49,7 @@ export const FooterLarge13Brand = () => {
                     </div>
 
                     <div className="space-y-6 text-left md:text-center lg:text-left">
-                        <UntitledLogoMinimal className="h-16 w-auto" />
+                        <UntitledLogoMinimal className="w-[165px] h-[115.5px] mx-auto lg:mx-0" />
                         <h2 className="text-3xl font-semibold leading-tight md:text-4xl">
                             Deploy institutional automation across your entire book.
                         </h2>

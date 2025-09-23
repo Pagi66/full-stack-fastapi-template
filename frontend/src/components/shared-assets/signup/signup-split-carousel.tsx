@@ -1,8 +1,6 @@
-import { ChevronLeft, ChevronRight } from "@untitledui/icons";
+
 import React, { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
-import { Carousel } from "@/components/application/carousel/carousel-base";
-import { CarouselIndicator } from "@/components/application/carousel/carousel.demo";
 import { Button } from "@/components/base/buttons/button";
 import { SocialButton } from "@/components/base/buttons/social-button";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
@@ -10,10 +8,8 @@ import { Form } from "@/components/base/form/form";
 import { Input } from "@/components/base/input/input";
 import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
 import { UntitledLogoMinimal } from "@/components/foundations/logo/untitledui-logo-minimal";
-import { ActiveUsersChart } from "@/components/shared-assets/illustrations/active-users-chart";
-import { UsersChart } from "@/components/shared-assets/illustrations/users-chart";
-import { UsersService } from "@/api";
 import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/modal";
+import { UsersService } from "@/api";
 
 export const SignupSplitCarousel = () => {
     const router = useRouter();
@@ -47,16 +43,16 @@ export const SignupSplitCarousel = () => {
 
     return (
         <>
-        <section className="grid min-h-screen grid-cols-1 bg-primary lg:grid-cols-2">
+        <section className="grid h-screen grid-cols-1 bg-primary lg:grid-cols-2">
             <div className="flex flex-col bg-primary">
-                <div className="flex flex-1 justify-center px-4 py-12 md:items-center md:px-8 md:py-32">
-                    <div className="flex w-full flex-col gap-8 sm:max-w-90">
-                        <div className="flex flex-col gap-6 md:gap-20">
-                            <UntitledLogo className="max-md:hidden" />
-                            <UntitledLogoMinimal className="size-10 md:hidden" />
-                            <div className="flex flex-col gap-2 md:gap-3">
-                                <h1 className="text-display-xs font-semibold text-primary md:text-display-md">Sign up</h1>
-                                <p className="text-md text-tertiary">Create your account to get started.</p>
+                <div className="flex flex-1 justify-center px-4 py-4 md:items-center md:px-8 md:py-8">
+                    <div className="flex w-full flex-col gap-4 sm:max-w-90">
+                        <div className="flex flex-col items-center gap-4">
+                            <UntitledLogo className="max-md:hidden w-[165px] h-[115.5px]" />
+                            <UntitledLogoMinimal className="w-[165px] h-[115.5px] md:hidden" />
+                            <div className="flex flex-col gap-1 text-center">
+                                <h1 className="text-xl font-semibold text-primary md:text-2xl">Sign up</h1>
+                                <p className="text-sm text-tertiary">Create your account to get started.</p>
                             </div>
                         </div>
 
@@ -116,38 +112,24 @@ export const SignupSplitCarousel = () => {
             </div>
 
             <div className="relative hidden items-center justify-center overflow-hidden bg-brand-section lg:flex">
-                <Carousel.Root className="z-10 flex w-full flex-col items-center gap-12">
-                    <Carousel.Content overflowHidden={false}>
-                        {Array.from({
-                            length: 4,
-                        }).map((_, i) => (
-                            <Carousel.Item key={i} className="w-full">
-                                <div className="flex flex-col items-center gap-12">
-                                    <div className="relative flex pb-10">
-                                        <UsersChart />
-
-                                        <ActiveUsersChart className="absolute -right-10 bottom-0 size-[192px]" />
-                                    </div>
-                                    <div className="flex flex-col gap-2 text-center">
-                                        <p className="text-xl font-semibold text-primary_on-brand">Join thousands of users</p>
-                                        <p className="text-md font-medium text-tertiary_on-brand">Start your journey with us today.</p>
-                                    </div>
-                                </div>
-                            </Carousel.Item>
-                        ))}
-                    </Carousel.Content>
-                    <div className="flex items-center justify-center gap-16">
-                        <Carousel.PrevTrigger className="cursor-pointer rounded-full p-2 outline-focus-ring transition duration-100 ease-linear focus-visible:outline-2 focus-visible:outline-offset-2">
-                            <ChevronLeft className="size-5 text-fg-white" />
-                        </Carousel.PrevTrigger>
-
-                        <CarouselIndicator />
-
-                        <Carousel.NextTrigger className="cursor-pointer rounded-full p-2 outline-focus-ring transition duration-100 ease-linear focus-visible:outline-2 focus-visible:outline-offset-2">
-                            <ChevronRight className="size-5 text-fg-white" />
-                        </Carousel.NextTrigger>
-                    </div>
-                </Carousel.Root>
+                <div className="absolute inset-0">
+                    <video 
+                        className="w-full h-full object-cover"
+                        autoPlay 
+                        loop 
+                        muted 
+                        playsInline 
+                        src="/images/trading-promo-video.hvc1.8bc71e78d0a69d3ec896.mp4"
+                    >
+                        <source src="/images/trading-promo-video.hvc1.8bc71e78d0a69d3ec896.mp4" type="video/mp4" />
+                        Your browser does not support the video tag.
+                    </video>
+                    <div className="absolute inset-0 bg-black/40"></div>
+                </div>
+                <div className="relative z-10 flex flex-col items-center gap-6 text-center">
+                    <h2 className="text-4xl font-bold text-white">Rediscover New Heights</h2>
+                    <p className="text-xl text-white/90">Professional trading platform with institutional-grade tools</p>
+                </div>
             </div>
         </section>
         {showSuccess && (
@@ -168,4 +150,3 @@ export const SignupSplitCarousel = () => {
         </>
     );
 };
-

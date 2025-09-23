@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, memo } from 'react';
 
-function TradingViewWidget() {
+interface TradingViewWidgetProps {
+  compact?: boolean;
+}
+
+function TradingViewWidget({ compact = false }: TradingViewWidgetProps) {
   const container = useRef<HTMLDivElement>(null);
 
   useEffect(
@@ -10,44 +14,26 @@ function TradingViewWidget() {
         container.current.innerHTML = '';
         
         const script = document.createElement("script");
-        script.src = "https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js";
+        script.src = "https://s3.tradingview.com/external-embedding/embed-widget-hotlists.js";
         script.type = "text/javascript";
         script.async = true;
         script.innerHTML = `
           {
-            "symbols": [
-              {
-                "proName": "FOREXCOM:SPXUSD",
-                "title": "S&P 500 Index"
-              },
-              {
-                "proName": "FOREXCOM:NSXUSD",
-                "title": "US 100 Cash CFD"
-              },
-              {
-                "proName": "FX_IDC:EURUSD",
-                "title": "EUR to USD"
-              },
-              {
-                "proName": "BITSTAMP:BTCUSD",
-                "title": "Bitcoin"
-              },
-              {
-                "proName": "BITSTAMP:ETHUSD",
-                "title": "Ethereum"
-              }
-            ],
+            "exchange": "US",
             "colorTheme": "dark",
+            "dateRange": "${compact ? '1D' : '12M'}",
+            "showChart": ${compact ? 'true' : 'false'},
             "locale": "en",
             "largeChartUrl": "",
-            "isTransparent": false,
-            "showSymbolLogo": true,
-            "displayMode": "adaptive"
+            "isTransparent": true,
+            "showSymbolLogo": false,
+            "showFloatingTooltip": true,
+            ${compact ? '"width": "100%", "height": "300"' : '"width": "100%", "height": "100%"'}
           }`;
         container.current.appendChild(script);
       }
     },
-    []
+    [compact]
   );
 
   return (
