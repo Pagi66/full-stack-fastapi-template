@@ -277,6 +277,70 @@ When transferring work to a new agent, ensure:
 - [ ] Known issues are documented
 - [ ] Next steps are clearly outlined
 
+### TraderSimulator Service Implementation (Completed: 2025-09-26)
+
+#### Task Summary
+- **Objective**: Implement TraderSimulator service with three core functions for trader performance simulation and copy trading
+- **Status**: ✅ COMPLETED
+
+#### Implementation Details
+- **Location**: `backend/app/services/trader_simulator.py`
+- **Service Class**: `TraderSimulator` with comprehensive trading simulation capabilities
+- **Integration**: Seamless integration with existing User, TraderProfile, and Trade models
+
+#### Core Functions Implemented
+1. **`generate_trader_performance(db: Session)`**
+   - Calculates comprehensive performance metrics for all traders
+   - Includes win rate, total profit/loss, average return, Sharpe ratio, max drawdown
+   - Updates trader profiles with realistic performance data
+
+2. **`simulate_trader_trade(db: Session)`**
+   - Simulates realistic trades for active public traders
+   - Uses specialty symbols (forex, crypto, stocks, indices) with appropriate volatility
+   - Implements risk-adjusted trading strategies based on trader risk tolerance
+   - Only winning trades are marked as copyable
+
+3. **`copy_trade_to_followers(db: Session, trader_trade: TraderTrade)`**
+   - Copies successful trader trades to all active followers
+   - Applies copy fees and minimum amount requirements
+   - Creates corresponding Trade records for followers
+   - Updates user balances and account summaries
+
+#### Technical Features
+- **Specialty Symbols**: Realistic trading symbols across 4 categories with appropriate volatility
+- **Realistic Stats**: Performance metrics include win rates (55-75%), monthly returns (2-15%), risk metrics
+- **Risk-Based Trading**: Different strategies based on risk tolerance (LOW/MEDIUM/HIGH)
+- **Copy Trading**: Full copy trading functionality with fee management
+- **Database Integration**: Seamless integration with existing database models
+
+#### Files Created/Modified
+- `backend/app/services/trader_simulator.py` - Main TraderSimulator service
+- `backend/test_trader_simulator.py` - Comprehensive test script
+- `backend/verify_trader_simulator.py` - Verification and demonstration script
+
+#### Testing Results
+✅ **Service Verification Successful**
+- Created 2 trader profiles for premium/VIP users
+- Performance metrics generation working correctly
+- Realistic price simulation with proper volatility
+- Database connectivity verified with existing users
+- All three required functions implemented and callable
+
+#### Usage Examples
+```python
+# Initialize and use the TraderSimulator
+from app.services.trader_simulator import TraderSimulator
+from app.core.db import get_session
+
+simulator = TraderSimulator()
+with get_session() as session:
+    # Generate performance metrics for all traders
+    simulator.generate_trader_performance(session)
+    
+    # Simulate trades for active traders
+    simulator.simulate_trader_trade(session)
+```
+
 ## Security Incident & Resolution (2025-09-26)
 
 ### Incident Summary
