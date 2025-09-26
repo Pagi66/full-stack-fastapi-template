@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo } from "react";
 import {
   Activity,
   BarChart01,
@@ -24,42 +24,16 @@ import {
 } from "@/api/services/PortfolioService";
 import { TransactionsService } from "@/api/services/TransactionsService";
 import TradingViewWidget from "@/components/trading-view-widget";
-import { CryptoBadge } from "@/components/base/badges/crypto-badge";
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
 const formatPercent = (value: number) => `${value.toFixed(2)}%`;
 
-// Simulated real-time data to match landing page claims
-const useLivePortfolioSimulation = () => {
-  const [liveMetrics, setLiveMetrics] = useState({
-    aum: 124567.89,
-    dailyPl: 1234.56,
-    activeStrategies: 3,
-    executionCount: 142
-  });
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLiveMetrics(prev => ({
-        aum: prev.aum * (1 + (Math.random() * 0.0005)), // Small random growth
-        dailyPl: prev.dailyPl + (Math.random() * 100 - 50), // Realistic fluctuations
-        activeStrategies: prev.activeStrategies,
-        executionCount: prev.executionCount + Math.floor(Math.random() * 3)
-      }));
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  return liveMetrics;
-};
-
 export const UserDashboard = () => {
   const { user, logout } = useAuth();
   const userId = user?.id;
-  const liveMetrics = useLivePortfolioSimulation();
+
 
   const accountSummaryQuery = useQuery({
     queryKey: ["account-summary", userId],
@@ -91,30 +65,44 @@ export const UserDashboard = () => {
 
   const latestDailyProfit = dailyPerformance[0]?.profit_loss ?? 0;
 
+  // Add market data fetching
+  const marketDataQuery = useQuery({
+    queryKey: ["market-prices"],
+    queryFn: () => PortfolioService.getMarketPrices(),
+    refetchInterval: 300000, // Update every 5 minutes
+  });
+
   const isLoading =
     accountSummaryQuery.isLoading ||
     tradesQuery.isLoading ||
     performanceQuery.isLoading ||
-    transactionsQuery.isLoading;
+    transactionsQuery.isLoading ||
+    marketDataQuery.isLoading;
 
-  // Institutional-grade metrics matching landing page
+  // Replace the stats calculation with real data + simulation
   const portfolioTelemetry = useMemo(() => {
+    const realBalance = user?.balance || 0; // Real balance from database
+    const simulatedProfit = summary?.net_profit || 0; // Simulated profit from trades
+    const roi = realBalance > 0 ? (simulatedProfit / realBalance) * 100 : 0;
+
     return [
       {
-        title: "AUM Deployed",
-        value: formatCurrency(liveMetrics.aum),
-        icon: TrendUp01,
-        change: "+2.3%",
-        changeLabel: "Today's growth",
+        title: "Current Balance",
+        value: formatCurrency(realBalance),
+        icon: Wallet01,
+        change: user?.account_tier ?? "Tier",
+        changeLabel: "Account tier",
         color: "success" as const,
+        isReal: true // Mark as real data
       },
       {
-        title: "Live P&L",
-        value: formatCurrency(liveMetrics.dailyPl),
-        icon: BarChart01,
-        change: liveMetrics.dailyPl >= 0 ? "positive" : "negative",
-        changeLabel: "Session performance",
-        color: liveMetrics.dailyPl >= 0 ? "success" : "error" as const,
+        title: "Net P&L",
+        value: formatCurrency(simulatedProfit),
+        icon: TrendUp01,
+        change: `${roi.toFixed(2)}%`,
+        changeLabel: "ROI",
+        color: simulatedProfit >= 0 ? "success" : "error" as const,
+        isReal: false // Mark as simulated
       },
       {
         title: "Win Rate",
@@ -125,15 +113,15 @@ export const UserDashboard = () => {
         color: "brand" as const,
       },
       {
-        title: "Executions",
-        value: liveMetrics.executionCount.toString(),
+        title: "Active Trades",
+        value: trades.filter(trade => trade.status === 'open').length.toString(),
         icon: Zap,
         change: `${Math.floor(Math.random() * 5)} new`,
-        changeLabel: "Active strategies",
+        changeLabel: "Live positions",
         color: "warning" as const,
       },
     ];
-  }, [liveMetrics, summary?.win_rate]);
+  }, [user, summary, trades]);
 
   // Simulated live execution feed
   const liveExecutions = useMemo(() => [
@@ -142,10 +130,7 @@ export const UserDashboard = () => {
     { time: "09:40:05", asset: "ETH/USD", action: "BUY" as const, quantity: "1.5", price: "$3,456.78" },
   ], []);
 
-  const proTraders = useMemo(() => [
-    { name: "Meridian Quant", performance: "+22.1%", risk: "Growth" as const, allocated: true },
-    { name: "Helios Macro", performance: "+18.7%", risk: "Moderate" as const, allocated: true },
-  ], []);
+
 
   const renderLiveExecutionFeed = () => (
     <div className="space-y-3">

@@ -47,7 +47,23 @@ export type Paginated<T> = {
     count: number;
 };
 
+export type MarketPrices = {
+    [symbol: string]: number;
+};
+
 export class PortfolioService {
+    /**
+     * Get current market prices
+     */
+    public static getMarketPrices(): CancelablePromise<MarketPrices> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/portfolio/market-prices',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
     /**
      * Retrieve account summary for a user
      * @param userId

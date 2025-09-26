@@ -16,6 +16,7 @@ import { useAuth } from "@/providers/auth-provider";
 import {
   Activity,
   CheckVerified01,
+  LogOut01,
   UserCheck02,
   Users03,
 } from "@untitledui/icons";
@@ -27,10 +28,10 @@ const formatDateTime = (value?: string | null) =>
   value ? new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'N/A';
 
 const formatLabel = (value?: string | null) =>
-  value ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase() : '—';
+  value ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase() : 'â€”';
 
 export const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const queryClient = useQueryClient();
   const [selectedUser, setSelectedUser] = useState<UserPublic | null>(null);
 
@@ -181,6 +182,19 @@ export const Dashboard = () => {
             <Badge type="color" size="sm" color="brand">
               {user?.email ?? 'admin'}
             </Badge>
+            <Button
+              color="primary-destructive"
+              size="sm"
+              onClick={() => {
+                if (window.confirm('Are you sure you want to logout?')) {
+                  logout();
+                }
+              }}
+              className="flex items-center gap-2"
+            >
+              <LogOut01 className="size-4" />
+              Logout
+            </Button>
           </div>
         </div>
       </header>
@@ -230,7 +244,7 @@ export const Dashboard = () => {
                     <div>
                       <p className="text-sm font-medium text-fg-primary">{entry.email}</p>
                       <p className="text-xs text-fg-tertiary">
-                        {formatLabel(entry.account_tier)} · {formatLabel(entry.role)}
+                        {formatLabel(entry.account_tier)} Â· {formatLabel(entry.role)}
                       </p>
                     </div>
                   </div>
@@ -279,7 +293,7 @@ export const Dashboard = () => {
                             <Avatar size="xs" initials={entry.email.slice(0, 2).toUpperCase()} />
                             <div>
                               <p className="text-sm font-medium text-fg-primary">{entry.email}</p>
-                              <p className="text-xs text-fg-tertiary">{entry.full_name ?? '—'}</p>
+                              <p className="text-xs text-fg-tertiary">{entry.full_name ?? 'â€”'}</p>
                             </div>
                           </div>
                         </td>

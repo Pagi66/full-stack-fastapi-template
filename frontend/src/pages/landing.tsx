@@ -171,7 +171,7 @@ const HeroSection = () => {
             <div 
                 className="absolute inset-0 bg-cover bg-center blur-[30px] scale-110"
                 style={{
-                    backgroundImage: "url('/images/videoframe_943.png')"
+                    backgroundImage: "url('images/aurora.d2a6947c3dcfb777c25f.webp')"
                 }}
             />
             {/* Overlay to ensure text readability */}

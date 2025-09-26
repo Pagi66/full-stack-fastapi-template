@@ -3,7 +3,7 @@ from datetime import date, datetime
 from enum import Enum
 
 from pydantic import EmailStr
-from sqlalchemy import Column
+from sqlalchemy import Column, JSON
 from sqlalchemy import Enum as SAEnum
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -53,6 +53,23 @@ class TradeStatus(str, Enum):
     OPEN = "OPEN"
     CLOSED = "CLOSED"
     CANCELLED = "CANCELLED"
+
+
+class TradeSimulationStatus(str, Enum):
+    OPEN = "open"
+    CLOSED = "closed"
+
+
+class RiskTolerance(str, Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+
+
+class CopyStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    PAUSED = "PAUSED"
+    STOPPED = "STOPPED"
 
 
 
@@ -125,8 +142,11 @@ class User(UserBase, table=True):
     items: list["Item"] = Relationship(back_populates="owner", cascade_delete=True)
     transactions: list["Transaction"] = Relationship(back_populates="user", cascade_delete=True)
     trades: list["Trade"] = Relationship(back_populates="user", cascade_delete=True)
+    trade_simulations: list["TradeSimulation"] = Relationship(back_populates="user", cascade_delete=True)
     daily_performance: list["DailyPerformance"] = Relationship(back_populates="user", cascade_delete=True)
     account_summaries: list["AccountSummary"] = Relationship(back_populates="user", cascade_delete=True)
+    trader_profile: "TraderProfile" = Relationship(back_populates="user", cascade_delete=True)
+    user_trader_copies: list["UserTraderCopy"] = Relationship(back_populates="user", cascade_delete=True)
 
 
 class UserPublic(UserBase):
@@ -319,3 +339,199 @@ class NewPassword(SQLModel):
     token: str
     new_password: str = Field(min_length=8, max_length=40)
 
+
+class TradeSimulationBase(SQLModel):
+    symbol: str = Field(max_length=20)
+    direction: str = Field(max_length=4)
+    volume: float = Field(gt=0)
+    entry_price: float
+    exit_price: float | None = None
+    profit_loss: float | None = None
+    status: str = Field(max_length=10)
+    opened_at: datetime = Field(default_factory=datetime.utcnow)
+    closed_at: datetime | None = None
+
+
+class TradeSimulationCreate(TradeSimulationBase):
+    user_id: uuid.UUID | None = None
+
+
+class TradeSimulationUpdate(TradeSimulationBase):
+    symbol: str | None = None
+    direction: str | None = None
+    volume: float | None = None
+    entry_price: float | None = None
+    status: str | None = None
+
+
+class TradeSimulation(TradeSimulationBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    user: User = Relationship(back_populates="trade_simulations")
+
+
+class TradeSimulationPublic(TradeSimulationBase):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    created_at: datetime
+
+
+class TradeSimulationsPublic(SQLModel):
+    data: list[TradeSimulationPublic]
+    count: int
+
+
+class MarketDataCacheBase(SQLModel):
+    symbol: str = Field(max_length=20, primary_key=True)
+    current_price: float | None = None
+    last_updated: datetime = Field(default_factory=datetime.utcnow)
+    daily_high: float | None = None
+    daily_low: float | None = None
+    price_change: float | None = None
+
+
+class MarketDataCacheCreate(MarketDataCacheBase):
+    pass
+
+
+class MarketDataCacheUpdate(MarketDataCacheBase):
+    symbol: str | None = None
+
+
+class MarketDataCache(MarketDataCacheBase, table=True):
+    pass
+
+
+class MarketDataCachePublic(MarketDataCacheBase):
+    pass
+
+
+class MarketDataCacheCollection(SQLModel):
+    data: list[MarketDataCachePublic]
+    count: int
+
+
+# Trader Profile Models
+class TraderProfileBase(SQLModel):
+    trading_strategy: str | None = Field(default=None, max_length=500)
+    risk_tolerance: RiskTolerance = RiskTolerance.MEDIUM
+    performance_metrics: dict | None = Field(default=None, sa_column=Column(JSON))
+    is_public: bool = Field(default=False)
+    copy_fee_percentage: float = Field(default=0.0, ge=0, le=100)
+    minimum_copy_amount: float = Field(default=100.0, gt=0)
+    total_copiers: int = Field(default=0)
+    total_assets_under_copy: float = Field(default=0.0)
+    average_monthly_return: float = Field(default=0.0)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class TraderProfileCreate(TraderProfileBase):
+    user_id: uuid.UUID
+
+
+class TraderProfileUpdate(TraderProfileBase):
+    trading_strategy: str | None = None
+    risk_tolerance: RiskTolerance | None = None
+    is_public: bool | None = None
+    copy_fee_percentage: float | None = None
+    minimum_copy_amount: float | None = None
+
+
+class TraderProfile(TraderProfileBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", unique=True)
+    user: User = Relationship(back_populates="trader_profile")
+    user_trader_copies: list["UserTraderCopy"] = Relationship(back_populates="trader_profile", cascade_delete=True)
+    trader_trades: list["TraderTrade"] = Relationship(back_populates="trader_profile", cascade_delete=True)
+
+
+class TraderProfilePublic(TraderProfileBase):
+    id: uuid.UUID
+    user_id: uuid.UUID
+
+
+class TraderProfilesPublic(SQLModel):
+    data: list[TraderProfilePublic]
+    count: int
+
+
+# User Trader Copy Models
+class UserTraderCopyBase(SQLModel):
+    copy_amount: float = Field(gt=0)
+    copy_started_at: datetime = Field(default_factory=datetime.utcnow)
+    copy_status: CopyStatus = CopyStatus.ACTIVE
+    copy_settings: dict | None = Field(default=None, sa_column=Column(JSON))
+
+
+class UserTraderCopyCreate(UserTraderCopyBase):
+    user_id: uuid.UUID
+    trader_profile_id: uuid.UUID
+
+
+class UserTraderCopyUpdate(UserTraderCopyBase):
+    copy_amount: float | None = None
+    copy_status: CopyStatus | None = None
+
+
+class UserTraderCopy(UserTraderCopyBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    trader_profile_id: uuid.UUID = Field(foreign_key="traderprofile.id")
+    user: User = Relationship(back_populates="user_trader_copies")
+    trader_profile: TraderProfile = Relationship(back_populates="user_trader_copies")
+
+
+class UserTraderCopyPublic(UserTraderCopyBase):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    trader_profile_id: uuid.UUID
+
+
+class UserTraderCopiesPublic(SQLModel):
+    data: list[UserTraderCopyPublic]
+    count: int
+
+
+# Trader Trade Models
+class TraderTradeBase(SQLModel):
+    symbol: str = Field(max_length=50)
+    side: TradeSide = TradeSide.BUY
+    entry_price: float
+    exit_price: float | None = None
+    volume: float = Field(gt=0)
+    profit_loss: float | None = None
+    status: TradeStatus = TradeStatus.OPEN
+    executed_at: datetime = Field(default_factory=datetime.utcnow)
+    is_copyable: bool = Field(default=True)
+    notes: str | None = Field(default=None, max_length=500)
+
+
+class TraderTradeCreate(TraderTradeBase):
+    trader_profile_id: uuid.UUID
+
+
+class TraderTradeUpdate(TraderTradeBase):
+    symbol: str | None = None
+    side: TradeSide | None = None
+    entry_price: float | None = None
+    volume: float | None = None
+    status: TradeStatus | None = None
+    is_copyable: bool | None = None
+
+
+class TraderTrade(TraderTradeBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    trader_profile_id: uuid.UUID = Field(foreign_key="traderprofile.id")
+    trader_profile: TraderProfile = Relationship(back_populates="trader_trades")
+
+
+class TraderTradePublic(TraderTradeBase):
+    id: uuid.UUID
+    trader_profile_id: uuid.UUID
+
+
+class TraderTradesPublic(SQLModel):
+    data: list[TraderTradePublic]
+    count: int
