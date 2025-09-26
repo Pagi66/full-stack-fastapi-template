@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import {
   Badge,
 } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { Avatar } from "@/components/base/avatar/avatar";
+import { TradersList } from "@/components/dashboard/traders-list";
 import { AdminService } from "@/api/services/AdminService";
 import { TransactionsService } from "@/api/services/TransactionsService";
 import {
@@ -214,6 +216,37 @@ export const Dashboard = () => {
               </div>
             </div>
           ))}
+        </section>
+
+        {/* Admin Navigation */}
+        <section className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
+          <h2 className="text-lg font-semibold text-fg-primary mb-4">Admin Tools</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Link to="/admin/trader-manager">
+              <div className="rounded-lg border border-border-secondary bg-bg-secondary p-4 hover:bg-bg-tertiary transition-colors cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-brand-100 p-2">
+                    <Users03 className="size-5 text-brand-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-fg-primary">Trader Manager</h3>
+                    <p className="text-sm text-fg-tertiary">Create and manage trader profiles</p>
+                  </div>
+                </div>
+              </div>
+            </Link>
+            <div className="rounded-lg border border-border-secondary bg-bg-secondary p-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-gray-100 p-2">
+                  <Activity className="size-5 text-gray-600" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-fg-primary">System Analytics</h3>
+                  <p className="text-sm text-fg-tertiary">Coming soon</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
@@ -515,6 +548,9 @@ export const Dashboard = () => {
             </div>
           )}
         </section>
+
+        {/* Active Traders Section */}
+        <TradersList />
 
         {selectedUser && (
           <section className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">

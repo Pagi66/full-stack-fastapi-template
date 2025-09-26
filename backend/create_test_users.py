@@ -55,6 +55,56 @@ def create_test_users():
                 "kyc_status": KycStatus.APPROVED,
                 "balance": 25000.0,
                 "description": "Active trader test account"
+            },
+            {
+                "email": "forex.trader@apex.com",
+                "password": "ForexTest123!",
+                "full_name": "Forex Specialist",
+                "role": UserRole.USER,
+                "account_tier": AccountTier.PREMIUM,
+                "kyc_status": KycStatus.APPROVED,
+                "balance": 15000.0,
+                "description": "Forex trading specialist"
+            },
+            {
+                "email": "crypto.trader@apex.com",
+                "password": "CryptoTrade123!",
+                "full_name": "Crypto Expert",
+                "role": UserRole.USER,
+                "account_tier": AccountTier.VIP,
+                "kyc_status": KycStatus.APPROVED,
+                "balance": 35000.0,
+                "description": "Cryptocurrency trading expert"
+            },
+            {
+                "email": "stocks.trader@apex.com",
+                "password": "StocksTrade123!",
+                "full_name": "Stock Market Analyst",
+                "role": UserRole.USER,
+                "account_tier": AccountTier.PREMIUM,
+                "kyc_status": KycStatus.APPROVED,
+                "balance": 20000.0,
+                "description": "Stock market trading analyst"
+            },
+            {
+                "email": "indices.trader@apex.com",
+                "password": "IndicesTrade123!",
+                "full_name": "Indices Trader",
+                "role": UserRole.USER,
+                "account_tier": AccountTier.STANDARD,
+                "kyc_status": KycStatus.APPROVED,
+                "balance": 8000.0,
+                "description": "Market indices trader"
+            },
+            {
+                "email": "vip.trader@apex.com",
+                "password": "VipTrade123!",
+                "full_name": "VIP Trader",
+                "role": UserRole.USER,
+                "account_tier": AccountTier.VIP,
+                "kyc_status": KycStatus.APPROVED,
+                "balance": 50000.0,
+                "description": "VIP level trader with high capital"
             }
         ]
         
@@ -126,7 +176,12 @@ def test_authentication():
         test_credentials = [
             {"email": "testadmin@apex.com", "password": "AdminTest123!"},
             {"email": "testuser@apex.com", "password": "UserTest123!"},
-            {"email": "trader@apex.com", "password": "TraderTest123!"}
+            {"email": "trader@apex.com", "password": "TraderTest123!"},
+            {"email": "forex.trader@apex.com", "password": "ForexTest123!"},
+            {"email": "crypto.trader@apex.com", "password": "CryptoTrade123!"},
+            {"email": "stocks.trader@apex.com", "password": "StocksTrade123!"},
+            {"email": "indices.trader@apex.com", "password": "IndicesTrade123!"},
+            {"email": "vip.trader@apex.com", "password": "VipTrade123!"}
         ]
         
         logger.info("\n🔐 Testing Authentication:")
@@ -171,10 +226,30 @@ if __name__ == "__main__":
         logger.info("  Password: UserTest123!")
         logger.info("  Role: USER")
         
-        logger.info("\nTrader User:")
+        logger.info("\nTrader Users:")
         logger.info("  Email: trader@apex.com")
         logger.info("  Password: TraderTest123!")
         logger.info("  Role: USER (Premium)")
+        
+        logger.info("  Email: forex.trader@apex.com")
+        logger.info("  Password: ForexTest123!")
+        logger.info("  Role: USER (Premium - Forex Specialist)")
+        
+        logger.info("  Email: crypto.trader@apex.com")
+        logger.info("  Password: CryptoTrade123!")
+        logger.info("  Role: USER (VIP - Crypto Expert)")
+        
+        logger.info("  Email: stocks.trader@apex.com")
+        logger.info("  Password: StocksTrade123!")
+        logger.info("  Role: USER (Premium - Stock Analyst)")
+        
+        logger.info("  Email: indices.trader@apex.com")
+        logger.info("  Password: IndicesTrade123!")
+        logger.info("  Role: USER (Standard - Indices Trader)")
+        
+        logger.info("  Email: vip.trader@apex.com")
+        logger.info("  Password: VipTrade123!")
+        logger.info("  Role: USER (VIP - High Capital)")
         
     except Exception as e:
         logger.error(f"❌ Error creating test users: {e}")
