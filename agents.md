@@ -277,28 +277,37 @@ When transferring work to a new agent, ensure:
 - [ ] Known issues are documented
 - [ ] Next steps are clearly outlined
 
-## Current Git State (2025-09-26)
+## Security Incident & Resolution (2025-09-26)
+
+### Incident Summary
+- **Issue**: Sensitive secrets accidentally committed to version control in `.env` file
+- **Files Affected**: `.env` file containing database credentials, JWT secrets, SMTP credentials
+- **Resolution**: Secrets removed from git history and repository cleaned
+
+### Security Fix Actions Taken
+1. **Created Clean Branch**: `feature/copy-trading-tables-clean` without sensitive files
+2. **Removed .env File**: Deleted from git tracking with commit `d1fd905`
+3. **Deleted Compromised Branch**: Removed `feature/copy-trading-tables` from remote and local
+4. **Verified Clean State**: Only clean branch remains in repository
+
+### Current Git State (2025-09-26)
 
 ### Latest Commit
-- **Commit Hash**: `a922f0c36134714c8db01ddf0d46a4d052d904e1`
-- **Branch**: `feature/copy-trading-tables`
-- **Message**: "Add copy trading functionality with trader profiles, user copies, and trader trades"
+- **Commit Hash**: `d1fd905` (clean branch)
+- **Branch**: `feature/copy-trading-tables-clean`
+- **Message**: "Remove .env file containing sensitive secrets from version control"
 
-### Files Changed in Latest Commit
-- **14 files changed, 969 insertions(+), 199 deletions(-)**
-- **New Files Created**:
-  - `backend/app/alembic/versions/26ae61361ef8_add_tradesimulation_and_marketdatacache_.py`
-  - `backend/app/alembic/versions/9f1440037223_add_trader_profiles_user_trader_copies_.py`
-  - `backend/app/api/routes/portfolio.py`
-  - `backend/app/services/trading_simulator.py`
-  - `backend/create_test_users.py`
-  - `frontend/public/images/aurora.d2a6947c3dcfb777c25f.webp`
+### Files Changed in Clean Branch
+- **All copy trading functionality preserved**
+- **.env file removed from version control**
+- **No sensitive data in repository**
 
-### Key Features Added
+### Key Features (Clean State)
 - Copy trading tables (TraderProfile, UserTraderCopy, TraderTrade)
 - Portfolio API routes and trading simulator service
 - Updated frontend components and services
 - Comprehensive documentation updates
+- **Security**: No sensitive credentials in version control
 
 ---
 *Documentation last updated: 2025-09-26*  
