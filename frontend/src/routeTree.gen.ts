@@ -15,6 +15,7 @@ import { Route as HomeRouteImport } from './routes/home'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DashboardCopyTradingRouteImport } from './routes/dashboard/copy-trading'
 import { Route as AdminTraderManagerRouteImport } from './routes/admin/trader-manager'
 import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
 
@@ -48,6 +49,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardCopyTradingRoute = DashboardCopyTradingRouteImport.update({
+  id: '/copy-trading',
+  path: '/copy-trading',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const AdminTraderManagerRoute = AdminTraderManagerRouteImport.update({
   id: '/admin/trader-manager',
   path: '/admin/trader-manager',
@@ -62,33 +68,36 @@ const AdminDashboardRoute = AdminDashboardRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
-  '/dashboard': typeof DashboardRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/home': typeof HomeRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/trader-manager': typeof AdminTraderManagerRoute
+  '/dashboard/copy-trading': typeof DashboardCopyTradingRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
-  '/dashboard': typeof DashboardRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/home': typeof HomeRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/trader-manager': typeof AdminTraderManagerRoute
+  '/dashboard/copy-trading': typeof DashboardCopyTradingRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
-  '/dashboard': typeof DashboardRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/home': typeof HomeRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/trader-manager': typeof AdminTraderManagerRoute
+  '/dashboard/copy-trading': typeof DashboardCopyTradingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/admin/dashboard'
     | '/admin/trader-manager'
+    | '/dashboard/copy-trading'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/admin/dashboard'
     | '/admin/trader-manager'
+    | '/dashboard/copy-trading'
   id:
     | '__root__'
     | '/'
@@ -121,12 +132,13 @@ export interface FileRouteTypes {
     | '/signup'
     | '/admin/dashboard'
     | '/admin/trader-manager'
+    | '/dashboard/copy-trading'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SplatRoute: typeof SplatRoute
-  DashboardRoute: typeof DashboardRoute
+  DashboardRoute: typeof DashboardRouteWithChildren
   HomeRoute: typeof HomeRoute
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
@@ -178,6 +190,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/copy-trading': {
+      id: '/dashboard/copy-trading'
+      path: '/copy-trading'
+      fullPath: '/dashboard/copy-trading'
+      preLoaderRoute: typeof DashboardCopyTradingRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/admin/trader-manager': {
       id: '/admin/trader-manager'
       path: '/admin/trader-manager'
@@ -195,10 +214,22 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface DashboardRouteChildren {
+  DashboardCopyTradingRoute: typeof DashboardCopyTradingRoute
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardCopyTradingRoute: DashboardCopyTradingRoute,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
-  DashboardRoute: DashboardRoute,
+  DashboardRoute: DashboardRouteWithChildren,
   HomeRoute: HomeRoute,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,

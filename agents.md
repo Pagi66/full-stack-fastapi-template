@@ -600,7 +600,57 @@ The following user accounts are available and ready to be converted into traders
 - **Duplicate Prevention**: Backend properly prevents creating multiple trader profiles for same user
 - **Success Timing**: Success messages display for 15 seconds for adequate code copying
 
+## Dashboard & Copy Trading Integration (Updated: 2025-09-27)
+
+### Task Summary
+- **Objective**: Restore the `/dashboard` overview while keeping nested copy-trading routes functional.
+- **Status**: COMPLETED (follow-up improvements identified)
+
+### Implementation Details
+- **Locations**: `frontend/src/pages/user-dashboard.tsx`, `frontend/src/routes/dashboard.tsx`, `frontend/src/routeTree.gen.ts`.
+- **Key Changes**:
+  1. Added TanStack Router `useLocation` awareness so the dashboard only defers to nested routes when a child path is active.
+  2. Replaced sidebar anchors with `<Link>` components and active-state styling to keep navigation in sync with the router.
+  3. Normalized trailing slashes and exposed a `children` outlet so `/dashboard` renders telemetry again while nested routes (e.g., `/dashboard/copy-trading`) display their content.
+  4. Regenerated the route tree and updated the dashboard wrapper to pass `children`, aligning with TanStack Router conventions.
+
+### Current Behaviour
+- `/dashboard` once again shows the full telemetry cards, live feed, and navigation sidebar.
+- Navigating to `/dashboard/copy-trading` and other child routes renders their views inside the dashboard shell without breaking the parent layout.
+
+### Verification
+- `npx tsc --noEmit`
+
+### Follow-up Work
+- ✅ 2025-09-27: Gated heavy dashboard queries to the root view, extracted a shared `DashboardLayout`, wired the copy-trading page to live API endpoints, and removed stray `=` / `{` artifacts.
+- 🔄 New recommendations:
+  1. Add backend endpoints for pausing/stopping copy relationships and expose corresponding UI actions.
+  2. Persist trader display names and codes in the schema (requires Alembic migration) to avoid deriving codes client-side.
+  3. Introduce automated tests covering copy-trading flows (backend unit tests + frontend React Query hooks).
+  4. Re-run `npx tsc --noEmit` once Node tooling is available locally/CI to confirm type safety.
+
+### Follow-up Implementation (Completed: 2025-09-27)
+- Added `backend/app/api/routes/copy_trading.py` with verify/start/list endpoints and registered the router in `app/api/main.py`.
+- Created `frontend/src/api/services/CopyTradingService.ts` and refactored `frontend/src/pages/copy-trading.tsx` to consume real API responses with improved empty states.
+- Introduced `frontend/src/components/dashboard/dashboard-layout.tsx` and updated `frontend/src/pages/user-dashboard.tsx` to share layout chrome while gating React Query calls to the root dashboard route.
+- Removed stray top-level placeholder files (`=` and `{`) during cleanup.
+- Verification attempt: `npx tsc --noEmit` (fails locally because `node`/`npx` binaries are unavailable in the current environment).
+
 ---
-*Documentation last updated: 2025-09-26*  
-*Maintained by: Cline (AI Assistant)*  
-*Next Agent: Ready for trader performance dashboard and copy trading interface development*
+*Documentation last updated: 2025-09-27*  \n*Maintained by: Codex (AI Assistant)*  \n*Next Agent: Implement real copy-trading integrations, optimize dashboard data fetching, and unify dashboard layout components*
+## Handoff Summary (Updated: 2025-09-27)
+
+### Completed
+- Added copy-trading API endpoints (verify/start/list) and connected the frontend to the live service via `CopyTradingService` and refreshed UI states.
+- Introduced a reusable `DashboardLayout`, gated dashboard React Query hooks to the root route, and migrated `copy-trading.tsx` to render within the shared shell.
+- Cleaned stray placeholder files at the repo root and refreshed copy-trading empty states with UntitledUI icons.
+- `npx tsc --noEmit` attempted; execution blocked because `node`/`npx` binaries are unavailable in the current environment.
+
+### Pending / Recommended Next Steps
+1. Implement pause/stop endpoints for copy relationships and surface controls in the UI.
+2. Persist trader `display_name` / `trader_code` values in the database (Alembic migration + backend/frontend updates).
+3. Add automated tests covering copy-trading flows (backend unit tests and frontend React Query integration tests).
+4. Re-run `npx tsc --noEmit` once Node is installed and wire the check into CI.
+
+### Suggested Prompt for Next Agent
+"Extend the copy-trading feature set by adding pause/stop endpoints plus UI controls, persist trader display names/codes via a migration, and add automated tests covering the new flows. Once Node tooling is available, run `npx tsc --noEmit` and relevant backend/frontend tests, then update AGENTS.md with results and open risks."

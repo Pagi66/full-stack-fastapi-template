@@ -2,12 +2,12 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { Message } from '../models/Message';
-import type { TraderCreateRequest } from '../models/TraderCreateRequest';
-import type { TraderCreateResponse } from '../models/TraderCreateResponse';
-import type { TraderProfilePublic } from '../models/TraderProfilePublic';
-import type { TraderProfilesPublic } from '../models/TraderProfilesPublic';
-import type { TraderProfileUpdate } from '../models/TraderProfileUpdate';
+import type { Message } from '../models/Message.ts';
+import type { TraderCreateRequest } from '../models/TraderCreateRequest.ts';
+import type { TraderCreateResponse } from '../models/TraderCreateResponse.ts';
+import type { TraderProfilePublic } from '../models/TraderProfilePublic.ts';
+import type { TraderProfilesPublic } from '../models/TraderProfilesPublic.ts';
+import type { TraderProfileUpdate } from '../models/TraderProfileUpdate.ts';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
