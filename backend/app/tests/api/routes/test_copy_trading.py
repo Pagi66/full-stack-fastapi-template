@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, delete, select
 
@@ -57,6 +58,12 @@ def test_copy_trading_pause_and_stop_flow(
         full_name="Follower User",
     )
 
+    initial_balance = 2000.0
+    follower_user.balance = initial_balance
+    db.add(follower_user)
+    db.commit()
+    db.refresh(follower_user)
+
     copy_id: str | None = None
     trader_profile_id: str | None = None
     try:
@@ -95,6 +102,13 @@ def test_copy_trading_pause_and_stop_flow(
         assert verify_payload["trader"]["display_name"] == "Alpha FX"
         assert verify_payload["trader"]["trader_code"] == trader_code
 
+        baseline_summary = client.get(
+            f"{settings.API_V1_STR}/copy-trading/summary",
+            headers=superuser_token_headers,
+        )
+        assert baseline_summary.status_code == 200
+        summary_before = baseline_summary.json()
+
         start_response = client.post(
             f"{settings.API_V1_STR}/copy-trading/start",
             headers=follower_headers,
@@ -107,6 +121,9 @@ def test_copy_trading_pause_and_stop_flow(
         start_payload = start_response.json()
         copy_id = start_payload["copied_trader"]["copy_id"]
         assert start_payload["copied_trader"]["status"] == "ACTIVE"
+
+        db.refresh(follower_user)
+        assert follower_user.balance == pytest.approx(initial_balance - 500.0, rel=1e-3)
 
         copy_query = select(UserTraderCopy).where(
             UserTraderCopy.id == copy_id
@@ -125,7 +142,10 @@ def test_copy_trading_pause_and_stop_flow(
             headers=superuser_token_headers,
         )
         assert summary_response.status_code == 200
-        assert summary_response.json() == {"active": 1, "paused": 0, "stopped": 0}
+        summary_after_start = summary_response.json()
+        assert summary_after_start["active"] == summary_before["active"] + 1
+        assert summary_after_start["paused"] == summary_before["paused"]
+        assert summary_after_start["stopped"] == summary_before["stopped"]
 
         pause_response = client.post(
             f"{settings.API_V1_STR}/copy-trading/copied/{copy_id}/pause",
@@ -143,7 +163,10 @@ def test_copy_trading_pause_and_stop_flow(
             headers=superuser_token_headers,
         )
         assert summary_response.status_code == 200
-        assert summary_response.json() == {"active": 0, "paused": 1, "stopped": 0}
+        summary_after_pause = summary_response.json()
+        assert summary_after_pause["active"] == summary_before["active"]
+        assert summary_after_pause["paused"] == summary_before["paused"] + 1
+        assert summary_after_pause["stopped"] == summary_before["stopped"]
 
         resume_response = client.post(
             f"{settings.API_V1_STR}/copy-trading/copied/{copy_id}/resume",
@@ -161,7 +184,10 @@ def test_copy_trading_pause_and_stop_flow(
             headers=superuser_token_headers,
         )
         assert summary_response.status_code == 200
-        assert summary_response.json() == {"active": 1, "paused": 0, "stopped": 0}
+        summary_after_resume = summary_response.json()
+        assert summary_after_resume["active"] == summary_before["active"] + 1
+        assert summary_after_resume["paused"] == summary_before["paused"]
+        assert summary_after_resume["stopped"] == summary_before["stopped"]
 
         stop_response = client.post(
             f"{settings.API_V1_STR}/copy-trading/copied/{copy_id}/stop",
@@ -174,12 +200,18 @@ def test_copy_trading_pause_and_stop_flow(
         assert profile.total_copiers == 0
         assert profile.total_assets_under_copy == 0.0
 
+        db.refresh(follower_user)
+        assert follower_user.balance == pytest.approx(initial_balance, rel=1e-3)
+
         summary_response = client.get(
             f"{settings.API_V1_STR}/copy-trading/summary",
             headers=superuser_token_headers,
         )
         assert summary_response.status_code == 200
-        assert summary_response.json() == {"active": 0, "paused": 0, "stopped": 1}
+        summary_after_stop = summary_response.json()
+        assert summary_after_stop["active"] == summary_before["active"]
+        assert summary_after_stop["paused"] == summary_before["paused"]
+        assert summary_after_stop["stopped"] == summary_before["stopped"] + 1
 
 
     finally:

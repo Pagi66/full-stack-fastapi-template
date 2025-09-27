@@ -1,314 +1,381 @@
-import random
+﻿import random
 import uuid
-from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from datetime import date, datetime, time, timedelta
+from typing import Any, Dict, List
+
 from sqlmodel import Session, select
 
 from app.models import (
-    User, TraderProfile, TraderTrade, UserTraderCopy, Trade, 
-    TradeSide, TradeStatus, RiskTolerance, CopyStatus,
-    MarketDataCache, AccountSummary
+    AccountSummary,
+    CopyStatus,
+    RiskTolerance,
+    Trade,
+    TradeSide,
+    TradeStatus,
+    TraderProfile,
+    TraderTrade,
+    User,
+    UserTraderCopy,
 )
 
 
 class TraderSimulator:
-    """Simulates trader performance and copy trading functionality."""
-    
-    def __init__(self):
-        self.specialty_symbols = {
-            'forex': ['EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CAD'],
-            'crypto': ['BTC/USD', 'ETH/USD', 'ADA/USD', 'SOL/USD', 'DOT/USD'],
-            'stocks': ['AAPL', 'TSLA', 'MSFT', 'GOOGL', 'AMZN', 'NVDA'],
-            'indices': ['SPX500', 'NASDAQ', 'DJI', 'FTSE', 'DAX']
+    """Simulates trader performance, intraday trades, and copy trading."""
+
+    def __init__(self) -> None:
+        self.specialty_symbols: Dict[str, List[str]] = {
+            "forex": ["EUR/USD", "GBP/USD", "USD/JPY", "AUD/USD", "USD/CAD"],
+            "crypto": ["BTC/USD", "ETH/USD", "ADA/USD", "SOL/USD", "DOT/USD"],
+            "stocks": ["AAPL", "TSLA", "MSFT", "GOOGL", "AMZN", "NVDA"],
+            "indices": ["SPX500", "NASDAQ", "DJI", "FTSE", "DAX"],
         }
-        
-        # Realistic base prices for simulation
-        self.base_prices = {
-            'EUR/USD': 1.08, 'GBP/USD': 1.26, 'USD/JPY': 150.0, 'AUD/USD': 0.65, 'USD/CAD': 1.35,
-            'BTC/USD': 65000, 'ETH/USD': 3500, 'ADA/USD': 0.45, 'SOL/USD': 120, 'DOT/USD': 6.5,
-            'AAPL': 180, 'TSLA': 250, 'MSFT': 420, 'GOOGL': 140, 'AMZN': 175, 'NVDA': 900,
-            'SPX500': 5200, 'NASDAQ': 18000, 'DJI': 38000, 'FTSE': 7500, 'DAX': 17500
+
+        self.base_prices: Dict[str, float] = {
+            "EUR/USD": 1.08,
+            "GBP/USD": 1.26,
+            "USD/JPY": 150.0,
+            "AUD/USD": 0.65,
+            "USD/CAD": 1.35,
+            "BTC/USD": 65_000.0,
+            "ETH/USD": 3_500.0,
+            "ADA/USD": 0.45,
+            "SOL/USD": 120.0,
+            "DOT/USD": 6.5,
+            "AAPL": 180.0,
+            "TSLA": 250.0,
+            "MSFT": 420.0,
+            "GOOGL": 140.0,
+            "AMZN": 175.0,
+            "NVDA": 900.0,
+            "SPX500": 5_200.0,
+            "NASDAQ": 18_000.0,
+            "DJI": 38_000.0,
+            "FTSE": 7_500.0,
+            "DAX": 17_500.0,
         }
-        
-        # Volatility factors by symbol type
-        self.volatility_factors = {
-            'forex': 0.005,    # 0.5% daily volatility
-            'crypto': 0.03,    # 3% daily volatility  
-            'stocks': 0.02,    # 2% daily volatility
-            'indices': 0.015   # 1.5% daily volatility
+
+        self.volatility_factors: Dict[str, float] = {
+            "forex": 0.005,
+            "crypto": 0.03,
+            "stocks": 0.02,
+            "indices": 0.015,
+        }
+
+        # Sessions loosely aligned with global market opens.
+        self.session_windows: List[tuple[str, time, time]] = [
+            ("asia", time(0, 30), time(6, 0)),
+            ("europe", time(6, 0), time(12, 0)),
+            ("us", time(12, 0), time(17, 0)),
+            ("after_hours", time(17, 0), time(23, 0)),
+        ]
+        self.session_minimums: Dict[str, int] = {
+            "asia": 2,
+            "europe": 3,
+            "us": 4,
+            "after_hours": 1,
         }
 
     def _generate_unique_trader_code(self, db: Session) -> str:
-        """Generate a unique trader code that matches API expectations."""
-
-        alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+        alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
         length_options = (6, 7, 8)
 
         while True:
             length = random.choice(length_options)
-            candidate = ''.join(random.choice(alphabet) for _ in range(length))
-
-            existing = db.exec(
-                select(TraderProfile).where(TraderProfile.trader_code == candidate)
-            ).first()
-
+            candidate = "".join(random.choice(alphabet) for _ in range(length))
+            existing = db.exec(select(TraderProfile).where(TraderProfile.trader_code == candidate)).first()
             if existing is None:
                 return candidate
 
     def _get_symbol_type(self, symbol: str) -> str:
-        """Determine the type of symbol based on its characteristics."""
-        if symbol.endswith('/USD') and len(symbol.split('/')) == 2:
-            if symbol in ['BTC/USD', 'ETH/USD', 'ADA/USD', 'SOL/USD', 'DOT/USD']:
-                return 'crypto'
-            return 'forex'
-        elif symbol in ['SPX500', 'NASDAQ', 'DJI', 'FTSE', 'DAX']:
-            return 'indices'
-        else:
-            return 'stocks'
+        if symbol.endswith("/USD") and len(symbol.split("/")) == 2:
+            if symbol in self.specialty_symbols["crypto"]:
+                return "crypto"
+            return "forex"
+        if symbol in self.specialty_symbols["indices"]:
+            return "indices"
+        return "stocks"
 
     def _get_realistic_price(self, symbol: str) -> float:
-        """Generate realistic current price with volatility."""
         base_price = self.base_prices.get(symbol, 100.0)
         symbol_type = self._get_symbol_type(symbol)
-        volatility = self.volatility_factors[symbol_type]
-        
-        # Simulate price movement with some trend persistence
+        volatility = self.volatility_factors.get(symbol_type, 0.01)
         price_move = random.uniform(-volatility, volatility)
         return base_price * (1 + price_move)
 
+    def _random_time_in_window(self, trading_day: date, start: time, end: time) -> datetime:
+        start_dt = datetime.combine(trading_day, start)
+        end_dt = datetime.combine(trading_day, end)
+        if end_dt <= start_dt:
+            end_dt = start_dt + timedelta(hours=1)
+        delta_seconds = int((end_dt - start_dt).total_seconds())
+        if delta_seconds <= 0:
+            return start_dt
+        return start_dt + timedelta(seconds=random.randint(0, delta_seconds - 1))
+
+    def _generate_trade_schedule(self, trading_day: date, trade_count: int) -> List[datetime]:
+        distribution = {name: minimum for name, minimum in self.session_minimums.items()}
+        extras = max(trade_count - sum(distribution.values()), 0)
+        session_keys = [name for name, *_ in self.session_windows]
+        while extras > 0:
+            distribution[random.choice(session_keys)] += 1
+            extras -= 1
+
+        schedule: List[datetime] = []
+        for name, start, end in self.session_windows:
+            for _ in range(distribution[name]):
+                schedule.append(self._random_time_in_window(trading_day, start, end))
+        schedule.sort()
+        return schedule
+
+    def _select_symbol_for_trader(self, trader_profile: TraderProfile) -> tuple[str, str]:
+        if trader_profile.risk_tolerance == RiskTolerance.LOW:
+            categories = ["forex", "indices"]
+        elif trader_profile.risk_tolerance == RiskTolerance.MEDIUM:
+            categories = ["forex", "indices", "stocks"]
+        else:
+            categories = ["crypto", "stocks"]
+        category = random.choice(categories)
+        symbol = random.choice(self.specialty_symbols[category])
+        return symbol, category
+
+    def _determine_trade_outcome(self, trader_profile: TraderProfile) -> tuple[bool, float]:
+        base_rate = {
+            RiskTolerance.LOW: 0.65,
+            RiskTolerance.MEDIUM: 0.6,
+            RiskTolerance.HIGH: 0.55,
+        }.get(trader_profile.risk_tolerance, 0.6)
+
+        metrics = trader_profile.performance_metrics or {}
+        historical = metrics.get("win_rate")
+        if isinstance(historical, (int, float)):
+            historical_rate = max(0.0, min(float(historical) / 100.0, 1.0))
+            effective_rate = (base_rate + historical_rate) / 2
+        else:
+            effective_rate = base_rate
+
+        effective_rate = max(0.4, min(effective_rate, 0.85))
+        is_win = random.random() < effective_rate
+        if is_win:
+            percent_move = random.uniform(0.01, 0.05)
+        else:
+            percent_move = -random.uniform(0.01, 0.03)
+        return is_win, percent_move
+
+    def _determine_trade_volume(self, trader_profile: TraderProfile) -> float:
+        typical_volume = 1_000.0
+        metrics = trader_profile.performance_metrics or {}
+        avg_return = metrics.get("average_return_per_trade")
+        if isinstance(avg_return, (int, float)) and avg_return:
+            typical_volume = max(100.0, min(10_000.0, abs(float(avg_return)) * 10))
+        risk_multiplier = {
+            RiskTolerance.LOW: 0.8,
+            RiskTolerance.MEDIUM: 1.0,
+            RiskTolerance.HIGH: 1.2,
+        }.get(trader_profile.risk_tolerance, 1.0)
+        base = typical_volume * risk_multiplier
+        return round(random.uniform(base * 0.6, base * 1.4), 2)
+
     def _calculate_performance_metrics(self, trader_trades: List[TraderTrade]) -> Dict[str, Any]:
-        """Calculate comprehensive performance metrics for a trader."""
         if not trader_trades:
             return {
-                'total_trades': 0,
-                'winning_trades': 0,
-                'losing_trades': 0,
-                'win_rate': 0.0,
-                'total_profit_loss': 0.0,
-                'average_return_per_trade': 0.0,
-                'largest_win': 0.0,
-                'largest_loss': 0.0,
-                'sharpe_ratio': 0.0,
-                'max_drawdown': 0.0
+                "total_trades": 0,
+                "winning_trades": 0,
+                "losing_trades": 0,
+                "win_rate": 0.0,
+                "total_profit_loss": 0.0,
+                "average_return_per_trade": 0.0,
+                "largest_win": 0.0,
+                "largest_loss": 0.0,
+                "sharpe_ratio": 0.0,
+                "max_drawdown": 0.0,
             }
-        
-        closed_trades = [t for t in trader_trades if t.status == TradeStatus.CLOSED and t.profit_loss is not None]
-        if not closed_trades:
+
+        closed = [t for t in trader_trades if t.status == TradeStatus.CLOSED and t.profit_loss is not None]
+        if not closed:
             return {
-                'total_trades': len(trader_trades),
-                'winning_trades': 0,
-                'losing_trades': 0,
-                'win_rate': 0.0,
-                'total_profit_loss': 0.0,
-                'average_return_per_trade': 0.0,
-                'largest_win': 0.0,
-                'largest_loss': 0.0,
-                'sharpe_ratio': 0.0,
-                'max_drawdown': 0.0
+                "total_trades": len(trader_trades),
+                "winning_trades": 0,
+                "losing_trades": 0,
+                "win_rate": 0.0,
+                "total_profit_loss": 0.0,
+                "average_return_per_trade": 0.0,
+                "largest_win": 0.0,
+                "largest_loss": 0.0,
+                "sharpe_ratio": 0.0,
+                "max_drawdown": 0.0,
             }
-        
-        profits = [t.profit_loss for t in closed_trades]
-        winning_trades = [p for p in profits if p > 0]
-        losing_trades = [p for p in profits if p < 0]
-        
+
+        profits = [t.profit_loss for t in closed if t.profit_loss is not None]
+        winning = [p for p in profits if p > 0]
+        losing = [p for p in profits if p < 0]
         total_profit = sum(profits)
-        win_rate = len(winning_trades) / len(closed_trades) if closed_trades else 0
-        
-        # Calculate Sharpe ratio (simplified)
-        avg_return = total_profit / len(closed_trades) if closed_trades else 0
-        std_dev = (sum((p - avg_return) ** 2 for p in profits) / len(profits)) ** 0.5 if profits else 1
-        sharpe_ratio = avg_return / std_dev if std_dev > 0 else 0
-        
-        # Calculate max drawdown (simplified)
-        running_total = 0
-        peak = 0
-        max_drawdown = 0
+        win_rate = len(winning) / len(closed) if closed else 0
+        avg_return = total_profit / len(closed) if closed else 0
+        variance = sum((p - avg_return) ** 2 for p in profits) / len(profits) if profits else 0
+        std_dev = variance ** 0.5 if variance > 0 else 1
+        sharpe_ratio = avg_return / std_dev if std_dev else 0
+
+        running_total = 0.0
+        peak = 0.0
+        max_drawdown = 0.0
         for profit in profits:
             running_total += profit
             if running_total > peak:
                 peak = running_total
             drawdown = peak - running_total
-            if drawdown > max_drawdown:
-                max_drawdown = drawdown
-        
+            max_drawdown = max(max_drawdown, drawdown)
+
         return {
-            'total_trades': len(trader_trades),
-            'winning_trades': len(winning_trades),
-            'losing_trades': len(losing_trades),
-            'win_rate': round(win_rate * 100, 2),  # Percentage
-            'total_profit_loss': round(total_profit, 2),
-            'average_return_per_trade': round(avg_return, 2),
-            'largest_win': round(max(winning_trades) if winning_trades else 0, 2),
-            'largest_loss': round(min(losing_trades) if losing_trades else 0, 2),
-            'sharpe_ratio': round(sharpe_ratio, 2),
-            'max_drawdown': round(max_drawdown, 2)
+            "total_trades": len(trader_trades),
+            "winning_trades": len(winning),
+            "losing_trades": len(losing),
+            "win_rate": round(win_rate * 100, 2),
+            "total_profit_loss": round(total_profit, 2),
+            "average_return_per_trade": round(avg_return, 2),
+            "largest_win": round(max(winning) if winning else 0.0, 2),
+            "largest_loss": round(min(losing) if losing else 0.0, 2),
+            "sharpe_ratio": round(sharpe_ratio, 2),
+            "max_drawdown": round(max_drawdown, 2),
         }
 
-    def generate_trader_performance(self, db: Session):
-        """Generate realistic performance metrics for all traders."""
-        # Get all trader profiles
+    def _update_daily_win_rate(self, db: Session, trader_profile: TraderProfile, trading_day: date) -> None:
+        previous_day = trading_day - timedelta(days=1)
+        start = datetime.combine(previous_day, time.min)
+        end = start + timedelta(days=1)
+        statement = (
+            select(TraderTrade)
+            .where(TraderTrade.trader_profile_id == trader_profile.id)
+            .where(TraderTrade.executed_at >= start)
+            .where(TraderTrade.executed_at < end)
+            .where(TraderTrade.status == TradeStatus.CLOSED)
+        )
+        trades = db.exec(statement).all()
+
+        metrics = trader_profile.performance_metrics or {}
+        if trades:
+            closed = [t for t in trades if t.profit_loss is not None]
+            wins = sum(1 for t in closed if t.profit_loss and t.profit_loss > 0)
+            total = len(closed)
+            daily_win_rate = round((wins / total) * 100, 2) if total else 0.0
+            metrics.update(
+                {
+                    "win_rate": daily_win_rate,
+                    "previous_day_wins": wins,
+                    "previous_day_trades": total,
+                    "last_win_rate_calculated_at": datetime.utcnow().isoformat(),
+                }
+            )
+        else:
+            metrics.setdefault("previous_day_wins", 0)
+            metrics.setdefault("previous_day_trades", 0)
+            metrics["last_win_rate_calculated_at"] = datetime.utcnow().isoformat()
+
+        trader_profile.performance_metrics = metrics
+        trader_profile.updated_at = datetime.utcnow()
+        db.add(trader_profile)
+
+    def generate_trader_performance(self, db: Session) -> int:
         trader_profiles = db.exec(select(TraderProfile)).all()
-        
         for trader_profile in trader_profiles:
-            # Get all trades for this trader
-            trader_trades = db.exec(
-                select(TraderTrade).where(TraderTrade.trader_profile_id == trader_profile.id)
-            ).all()
-            
-            # Calculate performance metrics
-            performance_metrics = self._calculate_performance_metrics(trader_trades)
-            
-            # Update trader profile with new metrics
+            trades = db.exec(select(TraderTrade).where(TraderTrade.trader_profile_id == trader_profile.id)).all()
+            performance_metrics = self._calculate_performance_metrics(trades)
+            existing_metrics = trader_profile.performance_metrics or {}
+            performance_metrics["overall_win_rate"] = performance_metrics["win_rate"]
+            performance_metrics["win_rate"] = existing_metrics.get("win_rate", performance_metrics["win_rate"])
+            performance_metrics["previous_day_wins"] = existing_metrics.get("previous_day_wins", 0)
+            performance_metrics["previous_day_trades"] = existing_metrics.get("previous_day_trades", 0)
+            performance_metrics["last_win_rate_calculated_at"] = existing_metrics.get(
+                "last_win_rate_calculated_at"
+            )
             trader_profile.performance_metrics = performance_metrics
-            
-            # Calculate average monthly return based on performance
-            if trader_trades:
-                total_days = max((datetime.now() - min(t.executed_at for t in trader_trades)).days, 1)
-                monthly_return = (performance_metrics['total_profit_loss'] / total_days) * 30
+
+            if trades:
+                earliest = min(trade.executed_at for trade in trades)
+                total_days = max((datetime.utcnow() - earliest).days, 1)
+                monthly_return = (performance_metrics["total_profit_loss"] / total_days) * 30
                 trader_profile.average_monthly_return = round(monthly_return, 2)
             else:
                 trader_profile.average_monthly_return = 0.0
-            
-            trader_profile.updated_at = datetime.now()
+
+            trader_profile.updated_at = datetime.utcnow()
             db.add(trader_profile)
-        
+
         db.commit()
         return len(trader_profiles)
 
-    def simulate_trader_trade(self, db: Session):
-        """Simulate realistic trades for active traders."""
-        # Get all trader profiles that are public (active traders)
-        trader_profiles = db.exec(
-            select(TraderProfile).where(TraderProfile.is_public == True)
-        ).all()
-        
-        created_trades = []
-        
+    def simulate_trader_trade(self, db: Session, trading_day: date | None = None) -> int:
+        trading_day = trading_day or datetime.utcnow().date()
+        trader_profiles = db.exec(select(TraderProfile).where(TraderProfile.is_public == True)).all()
+        created_trades: List[TraderTrade] = []
+
         for trader_profile in trader_profiles:
-            # Determine trading frequency based on risk tolerance
-            trade_probability = {
-                RiskTolerance.LOW: 0.3,    # 30% chance per simulation
-                RiskTolerance.MEDIUM: 0.6, # 60% chance
-                RiskTolerance.HIGH: 0.8    # 80% chance
-            }.get(trader_profile.risk_tolerance, 0.5)
-            
-            if random.random() > trade_probability:
-                continue  # Skip this trader for now
-            
-            # Select a random symbol from appropriate category based on risk
-            symbol_categories = []
-            if trader_profile.risk_tolerance == RiskTolerance.LOW:
-                symbol_categories = ['forex', 'indices']
-            elif trader_profile.risk_tolerance == RiskTolerance.MEDIUM:
-                symbol_categories = ['forex', 'indices', 'stocks']
-            else:  # HIGH risk
-                symbol_categories = ['crypto', 'stocks']
-            
-            category = random.choice(symbol_categories)
-            symbol = random.choice(self.specialty_symbols[category])
-            
-            # Get realistic current price
-            current_price = self._get_realistic_price(symbol)
-            
-            # Determine trade outcome based on trader skill (simulated)
-            # Better traders have higher win rates
-            base_win_rate = {
-                RiskTolerance.LOW: 0.65,
-                RiskTolerance.MEDIUM: 0.60, 
-                RiskTolerance.HIGH: 0.55
-            }.get(trader_profile.risk_tolerance, 0.60)
-            
-            # Adjust win rate based on historical performance if available
-            if trader_profile.performance_metrics:
-                historical_win_rate = trader_profile.performance_metrics.get('win_rate', 50) / 100
-                # Blend historical performance with base rate
-                effective_win_rate = (base_win_rate + historical_win_rate) / 2
-            else:
-                effective_win_rate = base_win_rate
-            
-            is_win = random.random() < effective_win_rate
-            
-            # Determine price movement based on win/loss and volatility
-            symbol_type = self._get_symbol_type(symbol)
-            volatility = self.volatility_factors[symbol_type]
-            
-            if is_win:
-                price_move = random.uniform(0.005, volatility)  # 0.5% to full volatility
-            else:
-                price_move = random.uniform(-volatility, -0.005)  # -volatility to -0.5%
-            
-            exit_price = current_price * (1 + price_move)
-            
-            # Determine realistic volume based on trader's typical behavior
-            # Use trader's average trade size or default to reasonable amount
-            typical_volume = 1000.0  # Default volume
-            if trader_profile.performance_metrics and trader_profile.performance_metrics.get('average_return_per_trade'):
-                # Scale volume based on historical performance
-                avg_return = abs(trader_profile.performance_metrics['average_return_per_trade'])
-                typical_volume = max(100.0, min(10000.0, avg_return * 10))
-            
-            volume = random.uniform(typical_volume * 0.5, typical_volume * 1.5)
-            profit_loss = volume * (exit_price - current_price)
-            
-            # Create the trader trade
-            trader_trade = TraderTrade(
-                trader_profile_id=trader_profile.id,
-                symbol=symbol,
-                side=TradeSide.BUY if is_win else TradeSide.SELL,
-                entry_price=round(current_price, 4),
-                exit_price=round(exit_price, 4),
-                volume=round(volume, 2),
-                profit_loss=round(profit_loss, 2),
-                status=TradeStatus.CLOSED,
-                executed_at=datetime.now(),
-                is_copyable=is_win,  # Only copy winning trades
-                notes=f"Simulated trade - {'WIN' if is_win else 'LOSS'}"
-            )
-            
-            db.add(trader_trade)
-            created_trades.append(trader_trade)
-        
+            self._update_daily_win_rate(db, trader_profile, trading_day)
+            trade_count = random.randint(10, 15)
+            schedule = self._generate_trade_schedule(trading_day, trade_count)
+
+            for trade_time in schedule:
+                symbol, _ = self._select_symbol_for_trader(trader_profile)
+                entry_price = round(self._get_realistic_price(symbol), 4)
+                is_win, percent_move = self._determine_trade_outcome(trader_profile)
+                exit_price = round(entry_price * (1 + percent_move), 4)
+                volume = self._determine_trade_volume(trader_profile)
+                profit_loss = round(volume * entry_price * percent_move, 2)
+
+                trader_trade = TraderTrade(
+                    trader_profile_id=trader_profile.id,
+                    symbol=symbol,
+                    side=TradeSide.BUY if percent_move >= 0 else TradeSide.SELL,
+                    entry_price=entry_price,
+                    exit_price=exit_price,
+                    volume=round(volume, 2),
+                    profit_loss=profit_loss,
+                    status=TradeStatus.CLOSED,
+                    executed_at=trade_time,
+                    is_copyable=is_win,
+                    notes=f"Simulated {'gain' if is_win else 'drawdown'} {percent_move * 100:.2f}%",
+                )
+
+                db.add(trader_trade)
+                created_trades.append(trader_trade)
+
         db.commit()
-        
-        # Copy winning trades to followers
+
         for trade in created_trades:
-            if trade.is_copyable and trade.profit_loss > 0:
+            if trade.is_copyable and (trade.profit_loss or 0) > 0:
                 self.copy_trade_to_followers(db, trade)
-        
+
         return len(created_trades)
 
-    def copy_trade_to_followers(self, db: Session, trader_trade: TraderTrade):
-        """Copy a successful trader trade to all active followers."""
-        # Get all active copy relationships for this trader
+    def copy_trade_to_followers(self, db: Session, trader_trade: TraderTrade) -> int:
         copy_relationships = db.exec(
             select(UserTraderCopy).where(
                 UserTraderCopy.trader_profile_id == trader_trade.trader_profile_id,
-                UserTraderCopy.copy_status == CopyStatus.ACTIVE
+                UserTraderCopy.copy_status == CopyStatus.ACTIVE,
             )
         ).all()
-        
-        copied_trades = []
-        
+
+        copied_trades: List[Trade] = []
         for copy_relation in copy_relationships:
+            if copy_relation.copy_amount <= 0:
+                continue
+
             user = db.get(User, copy_relation.user_id)
-            if not user or user.balance < copy_relation.copy_amount:
-                continue  # Skip users with insufficient balance
-            
-            # Calculate copy amount based on user's copy settings
+            if not user:
+                continue
+
             copy_amount = copy_relation.copy_amount
-            copy_multiplier = copy_amount / 1000.0  # Base multiplier on $1000
-            
-            # Scale the trade parameters for the follower
+            copy_multiplier = copy_amount / 1_000.0
+            if copy_multiplier <= 0:
+                continue
+
             scaled_volume = trader_trade.volume * copy_multiplier
-            scaled_profit_loss = trader_trade.profit_loss * copy_multiplier
-            
-            # Apply copy fee if applicable
+            scaled_profit_loss = (trader_trade.profit_loss or 0.0) * copy_multiplier
+
             trader_profile = db.get(TraderProfile, trader_trade.trader_profile_id)
             if trader_profile and trader_profile.copy_fee_percentage > 0:
                 fee = scaled_profit_loss * (trader_profile.copy_fee_percentage / 100)
                 scaled_profit_loss -= fee
-            
-            # Create the copied trade for the follower
+
             follower_trade = Trade(
                 user_id=user.id,
                 symbol=trader_trade.symbol,
@@ -319,73 +386,56 @@ class TraderSimulator:
                 profit_loss=round(scaled_profit_loss, 2),
                 status=TradeStatus.CLOSED,
                 opened_at=trader_trade.executed_at,
-                closed_at=datetime.now(),
-                notes=f"Copied from trader {trader_profile.user_id if trader_profile else 'Unknown'}"
+                closed_at=datetime.utcnow(),
+                notes=f"Copied from trader {trader_profile.user_id if trader_profile else 'Unknown'}",
             )
-            
-            # Update user balance
-            user.balance += scaled_profit_loss
-            
-            # Update account summary
+
+            user.balance = round(user.balance + scaled_profit_loss, 2)
             self._update_account_summary(db, user.id, scaled_profit_loss, scaled_profit_loss > 0)
-            
+
             db.add(follower_trade)
             db.add(user)
             copied_trades.append(follower_trade)
-        
+
         db.commit()
         return len(copied_trades)
 
-    def _update_account_summary(self, db: Session, user_id: uuid.UUID, profit_loss: float, is_win: bool):
-        """Update user's account summary after a copied trade."""
+    def _update_account_summary(self, db: Session, user_id: uuid.UUID, profit_loss: float, is_win: bool) -> None:
         summary = db.exec(select(AccountSummary).where(AccountSummary.user_id == user_id)).first()
-        
         if not summary:
             summary = AccountSummary(user_id=user_id)
             db.add(summary)
-        
+
         summary.total_trades += 1
         summary.net_profit += profit_loss
-        
         if is_win:
             summary.winning_trades += 1
         else:
             summary.losing_trades += 1
-        
         summary.win_rate = (summary.winning_trades / summary.total_trades * 100) if summary.total_trades > 0 else 0
-        summary.updated_at = datetime.now()
-        
+        summary.updated_at = datetime.utcnow()
         db.add(summary)
 
-    def initialize_trader_profiles(self, db: Session):
-        """Initialize trader profiles for users who should be traders."""
-        # Get users with premium or VIP accounts who don't have trader profiles
+    def initialize_trader_profiles(self, db: Session) -> int:
         potential_traders = db.exec(
             select(User).where(
-                User.account_tier.in_(['PREMIUM', 'VIP']),
-                ~User.id.in_(select(TraderProfile.user_id))
+                User.account_tier.in_(["PREMIUM", "VIP"]),
+                ~User.id.in_(select(TraderProfile.user_id)),
             )
         ).all()
-        
-        created_profiles = []
-        
-        for user in potential_traders:
-            # Only make some users public traders (30% chance)
-            is_public = random.random() < 0.3
 
-            # Assign random risk tolerance
+        created_profiles: List[TraderProfile] = []
+        for user in potential_traders:
+            is_public = random.random() < 0.3
             risk_tolerance = random.choice(list(RiskTolerance))
-            
-            # Create realistic trading strategy based on risk tolerance
             strategies = {
                 RiskTolerance.LOW: "Conservative position sizing with focus on forex and indices",
                 RiskTolerance.MEDIUM: "Balanced portfolio with mix of stocks and forex",
-                RiskTolerance.HIGH: "Aggressive growth strategy focusing on crypto and tech stocks"
+                RiskTolerance.HIGH: "Aggressive growth strategy focusing on crypto and tech stocks",
             }
 
             trader_code = self._generate_unique_trader_code(db)
             display_name = user.full_name or f"Trader {trader_code}"
-
             trader_profile = TraderProfile(
                 user_id=user.id,
                 display_name=display_name,
@@ -394,11 +444,11 @@ class TraderSimulator:
                 risk_tolerance=risk_tolerance,
                 is_public=is_public,
                 copy_fee_percentage=random.uniform(0.5, 5.0) if is_public else 0.0,
-                minimum_copy_amount=random.choice([100.0, 250.0, 500.0, 1000.0])
+                minimum_copy_amount=random.choice([100.0, 250.0, 500.0, 1_000.0]),
             )
-            
+
             db.add(trader_profile)
             created_profiles.append(trader_profile)
-        
+
         db.commit()
         return len(created_profiles)

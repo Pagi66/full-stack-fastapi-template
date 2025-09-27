@@ -187,6 +187,7 @@ def _load_copy_relationship(
         raise HTTPException(status_code=404, detail="Copy relationship not found")
 
     session.refresh(copy, attribute_names=["trader_profile"])
+    session.refresh(copy, attribute_names=["user"])
     if copy.trader_profile:
         session.refresh(copy.trader_profile, attribute_names=["user"])
     return copy
@@ -322,21 +323,32 @@ def start_copy_trading(
     if existing_copy:
         raise HTTPException(status_code=400, detail="You are already copying this trader")
 
+    session.refresh(current_user, attribute_names=["balance"])
+    if current_user.balance < payload.allocation_amount:
+        raise HTTPException(
+            status_code=400,
+            detail="Insufficient balance to allocate funds for copy trading",
+        )
+
     copy_entry = UserTraderCopy(
         user_id=current_user.id,
         trader_profile_id=trader.id,
         copy_amount=payload.allocation_amount,
         copy_status=CopyStatus.ACTIVE,
-        copy_settings={"source": "manual"},
+        copy_settings={"source": "manual", "initial_allocation": payload.allocation_amount},
     )
 
     session.add(copy_entry)
+
+    current_user.balance = round(current_user.balance - payload.allocation_amount, 2)
+    session.add(current_user)
 
     trader.total_copiers = (trader.total_copiers or 0) + 1
     trader.total_assets_under_copy = (trader.total_assets_under_copy or 0.0) + payload.allocation_amount
     session.add(trader)
 
     session.commit()
+    session.refresh(current_user, attribute_names=["balance"])
     session.refresh(copy_entry, attribute_names=["trader_profile"])
     session.refresh(trader, attribute_names=["user"])
 
@@ -416,11 +428,17 @@ def stop_copy_relationship(
     copy.copy_status = CopyStatus.STOPPED
     _apply_status_transition(copy, CopyStatus.STOPPED, previous_status=previous_status)
 
+    session.refresh(copy, attribute_names=["user"])
+    if copy.user:
+        copy.user.balance = round(copy.user.balance + copy.copy_amount, 2)
+        session.add(copy.user)
+
     session.add(copy)
     if copy.trader_profile:
         session.add(copy.trader_profile)
     session.commit()
     session.refresh(copy, attribute_names=["trader_profile"])
+    session.refresh(copy, attribute_names=["user"])
     if copy.trader_profile:
         session.refresh(copy.trader_profile, attribute_names=["user"])
 

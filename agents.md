@@ -669,3 +669,11 @@ Verification remains blocked until Python/Node tooling is installed. Once runtim
 - [x] `npx tsc --noEmit` (clean)
 Capture and summarize the results here once available.
 
+### Backend Updates (2025-09-27)
+- Updated `backend/app/api/routes/copy_trading.py` to deduct allocations from user balances on start, refund on stop, and enforce balance checks before creating copy relationships.
+- Reworked `backend/app/services/trader_simulator.py` to produce 10-15 timestamped trades per trading day with wins capped at +5%, losses limited to -3%, and daily win-rate recalculations based on the previous day.
+- Extended `backend/app/tests/api/routes/test_copy_trading.py` to validate balance deductions/refunds and assert summary deltas instead of absolute counts.
+
+### Validation
+- `python -m pytest backend/app/tests/api/routes/test_copy_trading.py --maxfail=1 -q` *(test assertions pass; teardown currently fails when fixture attempts to purge seeded trader profiles that still have historical trades — needs fixture cleanup order update).* 
+- `python -m pytest backend/app/tests/api/routes/test_copy_trading.py --maxfail=1 -q` (pass after fixture cleanup order adjusted)
