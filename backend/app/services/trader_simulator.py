@@ -38,6 +38,23 @@ class TraderSimulator:
             'indices': 0.015   # 1.5% daily volatility
         }
 
+    def _generate_unique_trader_code(self, db: Session) -> str:
+        """Generate a unique trader code that matches API expectations."""
+
+        alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+        length_options = (6, 7, 8)
+
+        while True:
+            length = random.choice(length_options)
+            candidate = ''.join(random.choice(alphabet) for _ in range(length))
+
+            existing = db.exec(
+                select(TraderProfile).where(TraderProfile.trader_code == candidate)
+            ).first()
+
+            if existing is None:
+                return candidate
+
     def _get_symbol_type(self, symbol: str) -> str:
         """Determine the type of symbol based on its characteristics."""
         if symbol.endswith('/USD') and len(symbol.split('/')) == 2:
@@ -355,7 +372,7 @@ class TraderSimulator:
         for user in potential_traders:
             # Only make some users public traders (30% chance)
             is_public = random.random() < 0.3
-            
+
             # Assign random risk tolerance
             risk_tolerance = random.choice(list(RiskTolerance))
             
@@ -365,9 +382,14 @@ class TraderSimulator:
                 RiskTolerance.MEDIUM: "Balanced portfolio with mix of stocks and forex",
                 RiskTolerance.HIGH: "Aggressive growth strategy focusing on crypto and tech stocks"
             }
-            
+
+            trader_code = self._generate_unique_trader_code(db)
+            display_name = user.full_name or f"Trader {trader_code}"
+
             trader_profile = TraderProfile(
                 user_id=user.id,
+                display_name=display_name,
+                trader_code=trader_code,
                 trading_strategy=strategies[risk_tolerance],
                 risk_tolerance=risk_tolerance,
                 is_public=is_public,

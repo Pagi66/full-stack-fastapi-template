@@ -6,6 +6,7 @@ import { Avatar } from "@/components/base/avatar/avatar";
 import { TraderService } from "@/api/services/TraderService";
 import type { TraderProfilePublic } from "@/api/models/TraderProfilePublic";
 import { Activity, Users03 } from "@untitledui/icons";
+import { CopyTradingService, type CopyTradingSummary } from "@/api/services/CopyTradingService";
 
 const formatDateTime = (value?: string | null) =>
   value ? new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'N/A';
@@ -31,12 +32,6 @@ const extractSpecialtyFromStrategy = (strategy?: string | null) => {
   return match ? match[1].charAt(0).toUpperCase() + match[1].slice(1) : 'General';
 };
 
-const generateTraderCodeFromId = (id: string): string => {
-  // Generate a consistent 6-8 character code from the trader ID
-  const hash = id.replace(/-/g, '').slice(0, 8).toUpperCase();
-  return hash.padEnd(6, 'X').slice(0, 8);
-};
-
 interface TradersListProps {
   className?: string;
 }
@@ -47,7 +42,13 @@ export const TradersList = ({ className }: TradersListProps) => {
     queryFn: () => TraderService.tradersReadTraders(0, 100),
   });
 
+  const summaryQuery = useQuery<CopyTradingSummary>({
+    queryKey: ["admin-copy-summary"],
+    queryFn: () => CopyTradingService.getCopyTradingSummary(),
+  });
+
   const traders = tradersQuery.data?.data ?? [];
+  const summary = summaryQuery.data;
 
   const handleRefresh = () => {
     tradersQuery.refetch();
@@ -84,6 +85,29 @@ export const TradersList = ({ className }: TradersListProps) => {
         </div>
       </div>
 
+      {summaryQuery.isLoading ? (
+        <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="h-16 animate-pulse rounded-lg bg-bg-secondary" />
+          ))}
+        </div>
+      ) : summary ? (
+        <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="rounded-lg border border-border-secondary bg-bg-secondary p-4">
+            <p className="text-xs text-fg-tertiary">Active Copy Relationships</p>
+            <p className="mt-1 text-2xl font-semibold text-fg-primary">{summary.active}</p>
+          </div>
+          <div className="rounded-lg border border-border-secondary bg-bg-secondary p-4">
+            <p className="text-xs text-fg-tertiary">Paused Copy Relationships</p>
+            <p className="mt-1 text-2xl font-semibold text-fg-primary">{summary.paused}</p>
+          </div>
+          <div className="rounded-lg border border-border-secondary bg-bg-secondary p-4">
+            <p className="text-xs text-fg-tertiary">Stopped Copy Relationships</p>
+            <p className="mt-1 text-2xl font-semibold text-fg-primary">{summary.stopped}</p>
+          </div>
+        </div>
+      ) : null}
+
       {tradersQuery.isLoading ? (
         <div className="flex h-40 items-center justify-center">
           <Activity className="size-5 animate-spin text-fg-tertiary" />
@@ -114,22 +138,29 @@ export const TradersList = ({ className }: TradersListProps) => {
               {traders.map((trader: TraderProfilePublic) => {
                 const riskInfo = formatRiskLevel(trader.risk_tolerance);
                 const specialty = extractSpecialtyFromStrategy(trader.trading_strategy);
-                const traderCode = generateTraderCodeFromId(trader.id);
-                
+                const traderCode = trader.trader_code;
+                const displayName = trader.display_name;
+                const initials = displayName
+                  .split(" ")
+                  .slice(0, 2)
+                  .map((token) => token[0] ?? "")
+                  .join("")
+                  .toUpperCase() || specialty.slice(0, 2).toUpperCase();
+
                 return (
                   <tr key={trader.id}>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-3">
                         <Avatar 
                           size="xs" 
-                          initials={specialty.slice(0, 2).toUpperCase()} 
+                          initials={initials} 
                         />
                         <div>
                           <p className="text-sm font-medium text-fg-primary">
-                            Trader {traderCode}
+                            {displayName}
                           </p>
                           <p className="text-xs text-fg-tertiary">
-                            User ID: {trader.user_id.slice(0, 8)}...
+                            Trader Code: {traderCode}
                           </p>
                         </div>
                       </div>

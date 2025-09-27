@@ -31,6 +31,18 @@ export interface StartCopyTradingResponse {
   copiedTrader?: CopiedTrader;
 }
 
+export interface UpdateCopyTradingResponse {
+  success: boolean;
+  message: string;
+  copiedTrader: CopiedTrader;
+}
+
+export interface CopyTradingSummary {
+  active: number;
+  paused: number;
+  stopped: number;
+}
+
 type BackendTraderSummary = {
   id: string;
   trader_code: string;
@@ -62,6 +74,18 @@ type BackendStartResponse = {
   success: boolean;
   message: string;
   copied_trader?: BackendCopiedTrader | null;
+};
+
+type BackendUpdateResponse = {
+  success: boolean;
+  message: string;
+  copied_trader: BackendCopiedTrader;
+};
+
+type BackendSummaryResponse = {
+  active: number;
+  paused: number;
+  stopped: number;
 };
 
 const apiBase = () => (OpenAPI.BASE ?? "").replace(/\/$/, "");
@@ -191,5 +215,60 @@ export class CopyTradingService {
       copiedTrader: payload.copied_trader ? mapCopiedTrader(payload.copied_trader) : undefined,
     };
   }
-}
 
+  static async pauseCopyTrading(copyId: string): Promise<UpdateCopyTradingResponse> {
+    const payload = await authorizedFetch<BackendUpdateResponse>(
+      `/api/v1/copy-trading/copied/${copyId}/pause`,
+      {
+        method: "POST",
+      }
+    );
+
+    return {
+      success: payload.success,
+      message: payload.message,
+      copiedTrader: mapCopiedTrader(payload.copied_trader),
+    };
+  }
+
+  static async stopCopyTrading(copyId: string): Promise<UpdateCopyTradingResponse> {
+    const payload = await authorizedFetch<BackendUpdateResponse>(
+      `/api/v1/copy-trading/copied/${copyId}/stop`,
+      {
+        method: "POST",
+      }
+    );
+
+    return {
+      success: payload.success,
+      message: payload.message,
+      copiedTrader: mapCopiedTrader(payload.copied_trader),
+    };
+  }
+
+  static async resumeCopyTrading(copyId: string): Promise<UpdateCopyTradingResponse> {
+    const payload = await authorizedFetch<BackendUpdateResponse>(
+      `/api/v1/copy-trading/copied/${copyId}/resume`,
+      {
+        method: "POST",
+      }
+    );
+
+    return {
+      success: payload.success,
+      message: payload.message,
+      copiedTrader: mapCopiedTrader(payload.copied_trader),
+    };
+  }
+
+  static async getCopyTradingSummary(): Promise<CopyTradingSummary> {
+    const payload = await authorizedFetch<BackendSummaryResponse>(
+      "/api/v1/copy-trading/summary",
+      {
+        method: "GET",
+      }
+    );
+
+    return payload;
+  }
+}

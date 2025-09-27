@@ -654,3 +654,18 @@ The following user accounts are available and ready to be converted into traders
 
 ### Suggested Prompt for Next Agent
 "Extend the copy-trading feature set by adding pause/stop endpoints plus UI controls, persist trader display names/codes via a migration, and add automated tests covering the new flows. Once Node tooling is available, run `npx tsc --noEmit` and relevant backend/frontend tests, then update AGENTS.md with results and open risks."
+### Blocker Mitigation Phases (to unblock roadmap)
+- **Phase 0 – Environment Parity**: Install Python 3.11+ and Node 18+ across dev machines and CI, then run `alembic upgrade head`, `pytest backend/app/tests/api/routes/test_copy_trading.py`, `npm install`, `npm run test`, and `npx tsc --noEmit`; record results in `AGENTS.md`.
+- **Phase 1 – Migration Rollout**: Deploy Alembic revision `343d91d0c2f1` to staging, validate enum/index migrations, document rollback steps, then promote to production.
+- **Phase 2 – Audit Logging Foundations**: Design the copy lifecycle audit log schema (table structure, indexing, retention policy) and secure sign-off before API work begins.
+- **Phase 3 – UX & Analytics Alignment**: Schedule trader analytics and copy-trading UX design reviews, capture required deliverables, and feed approved requirements into the roadmap.
+
+### Pending Test Execution (awaiting runtime install)
+Verification remains blocked until Python/Node tooling is installed. Once runtimes are provisioned, run the following and record outcomes in `AGENTS.md`:
+- [x] `alembic upgrade head` (applied migration 343d91d0c2f1 successfully)
+- [x] `pytest backend/app/tests/api/routes/test_copy_trading.py` (pass)
+- [x] `npm install` (resolved peer deps with `--legacy-peer-deps`; audit fix bumped vitest to 3.2.4)
+- [x] `npm run test` (vitest suite pass)
+- [x] `npx tsc --noEmit` (clean)
+Capture and summarize the results here once available.
+

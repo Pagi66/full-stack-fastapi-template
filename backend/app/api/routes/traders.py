@@ -1,3 +1,5 @@
+import random
+import string
 import uuid
 from typing import Any
 
@@ -37,6 +39,24 @@ class TraderCreateResponse(SQLModel):
     trader_code: str
 
 
+def _generate_unique_trader_code(session: SessionDep) -> str:
+    """Generate a unique 6-8 character trader code."""
+
+    alphabet = string.ascii_uppercase + string.digits
+    length_options = (6, 7, 8)
+
+    while True:
+        length = random.choice(length_options)
+        candidate = "".join(random.choice(alphabet) for _ in range(length))
+
+        existing = session.exec(
+            select(TraderProfile).where(TraderProfile.trader_code == candidate)
+        ).first()
+
+        if existing is None:
+            return candidate
+
+
 @router.get(
     "/",
     dependencies=[Depends(get_current_active_superuser)],
@@ -63,66 +83,46 @@ def read_traders(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
 )
 def create_trader(*, session: SessionDep, trader_in: TraderCreateRequest) -> Any:
     """Create a new trader profile."""
-    print(f"Received trader creation request: {trader_in}")
-    
-    try:
-        # Check if user exists
-        user = session.get(User, trader_in.user_id)
-        if not user:
-            raise HTTPException(
-                status_code=404,
-                detail="User not found.",
-            )
-        
-        # Check if user already has a trader profile
-        existing_trader = session.exec(
-            select(TraderProfile).where(TraderProfile.user_id == trader_in.user_id)
-        ).first()
-        
-        if existing_trader:
-            raise HTTPException(
-                status_code=400,
-                detail="User already has a trader profile.",
-            )
-        
-        # Generate a trader code (6-8 characters)
-        import random
-        import string
-        
-        def generate_trader_code():
-            length = random.randint(6, 8)
-            chars = string.ascii_uppercase + string.digits
-            return ''.join(random.choice(chars) for _ in range(length))
-        
-        trader_code = generate_trader_code()
-        
-        # Create trader profile
-        trader_profile_data = TraderProfileCreate(
-            user_id=trader_in.user_id,
-            trading_strategy=trader_in.trading_strategy or f"{trader_in.specialty} trading specialist",
-            risk_tolerance=trader_in.risk_level,
-            is_public=trader_in.is_public,
-            copy_fee_percentage=trader_in.copy_fee_percentage,
-            minimum_copy_amount=trader_in.minimum_copy_amount,
-        )
-        
-        print(f"Creating trader profile with data: {trader_profile_data}")
-        
-        trader_profile = TraderProfile.model_validate(trader_profile_data)
-        session.add(trader_profile)
-        session.commit()
-        session.refresh(trader_profile)
-        
-        return TraderCreateResponse(
-            trader_profile=TraderProfilePublic.model_validate(trader_profile),
-            trader_code=trader_code
-        )
-    
-    except Exception as e:
-        print(f"Error creating trader: {e}")
-        print(f"Error type: {type(e)}")
-        # Re-raise the exception to maintain the original error behavior
-        raise
+
+    user = session.get(User, trader_in.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    existing_trader = session.exec(
+        select(TraderProfile).where(TraderProfile.user_id == trader_in.user_id)
+    ).first()
+
+    if existing_trader:
+        raise HTTPException(status_code=400, detail="User already has a trader profile.")
+
+    display_name = trader_in.display_name.strip()
+    if not display_name:
+        raise HTTPException(status_code=400, detail="Display name cannot be empty.")
+
+    trader_code = _generate_unique_trader_code(session)
+
+    trader_profile_data = TraderProfileCreate(
+        user_id=trader_in.user_id,
+        display_name=display_name,
+        trader_code=trader_code,
+        trading_strategy=
+            trader_in.trading_strategy
+            or f"{trader_in.specialty} trading specialist",
+        risk_tolerance=trader_in.risk_level,
+        is_public=trader_in.is_public,
+        copy_fee_percentage=trader_in.copy_fee_percentage,
+        minimum_copy_amount=trader_in.minimum_copy_amount,
+    )
+
+    trader_profile = TraderProfile.model_validate(trader_profile_data)
+    session.add(trader_profile)
+    session.commit()
+    session.refresh(trader_profile)
+
+    return TraderCreateResponse(
+        trader_profile=TraderProfilePublic.model_validate(trader_profile),
+        trader_code=trader_code,
+    )
 
 
 @router.get(

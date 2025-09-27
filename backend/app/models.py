@@ -414,6 +414,8 @@ class MarketDataCacheCollection(SQLModel):
 
 # Trader Profile Models
 class TraderProfileBase(SQLModel):
+    display_name: str = Field(max_length=255)
+    trader_code: str = Field(max_length=16, unique=True, index=True)
     trading_strategy: str | None = Field(default=None, max_length=500)
     risk_tolerance: RiskTolerance = RiskTolerance.MEDIUM
     performance_metrics: dict | None = Field(default=None, sa_column=Column(JSON))
@@ -432,6 +434,8 @@ class TraderProfileCreate(TraderProfileBase):
 
 
 class TraderProfileUpdate(TraderProfileBase):
+    display_name: str | None = None
+    trader_code: str | None = None
     trading_strategy: str | None = None
     risk_tolerance: RiskTolerance | None = None
     is_public: bool | None = None

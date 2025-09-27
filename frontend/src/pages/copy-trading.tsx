@@ -9,7 +9,9 @@ import {
   CopyTradingService,
   type CopiedTrader,
   type StartCopyTradingResponse,
+  type UpdateCopyTradingResponse,
   type VerifyTraderResponse,
+  type TraderStatus,
 } from "@/api/services/CopyTradingService";
 import { Users03 } from "@untitledui/icons";
 
@@ -26,6 +28,19 @@ const getRiskColor = (riskLevel: "LOW" | "MEDIUM" | "HIGH") => {
       return "error" as const;
     default:
       return "brand" as const;
+  }
+};
+
+const getStatusColor = (status: TraderStatus) => {
+  switch (status) {
+    case "ACTIVE":
+      return "success" as const;
+    case "PAUSED":
+      return "warning" as const;
+    case "STOPPED":
+      return "error" as const;
+    default:
+      return "gray" as const;
   }
 };
 
@@ -121,6 +136,74 @@ export const CopyTrading = () => {
   };
 
   const copiedTraders = copiedTradersQuery.data ?? [];
+  const activeCopyCount = copiedTraders.filter((entry) => entry.status === "ACTIVE").length;
+  const pausedCopyCount = copiedTraders.filter((entry) => entry.status === "PAUSED").length;
+  const stoppedCopyCount = copiedTraders.filter((entry) => entry.status === "STOPPED").length;
+
+  const pauseCopyMutation = useMutation<
+    UpdateCopyTradingResponse,
+    Error,
+    string
+  >({
+    mutationFn: (copyId) => CopyTradingService.pauseCopyTrading(copyId),
+    onSuccess: (data) => {
+      setAlertMessage(data.message);
+      setAlertType("success");
+      queryClient.invalidateQueries({ queryKey: ["copied-traders"] });
+    },
+    onError: (error) => {
+      setAlertMessage(error.message || "Failed to pause copy trading relationship.");
+      setAlertType("error");
+    },
+  });
+
+  const stopCopyMutation = useMutation<
+    UpdateCopyTradingResponse,
+    Error,
+    string
+  >({
+    mutationFn: (copyId) => CopyTradingService.stopCopyTrading(copyId),
+    onSuccess: (data) => {
+      setAlertMessage(data.message);
+      setAlertType("success");
+      queryClient.invalidateQueries({ queryKey: ["copied-traders"] });
+    },
+    onError: (error) => {
+      setAlertMessage(error.message || "Failed to stop copy trading relationship.");
+      setAlertType("error");
+    },
+  });
+
+  const handlePauseCopy = (copyId: string) => {
+    pauseCopyMutation.mutate(copyId);
+  };
+
+  const handleStopCopy = (copyId: string) => {
+    if (window.confirm("Stopping will remove this copy relationship permanently. Continue?")) {
+      stopCopyMutation.mutate(copyId);
+    }
+  };
+
+  const resumeCopyMutation = useMutation<
+    UpdateCopyTradingResponse,
+    Error,
+    string
+  >({
+    mutationFn: (copyId) => CopyTradingService.resumeCopyTrading(copyId),
+    onSuccess: (data) => {
+      setAlertMessage(data.message);
+      setAlertType("success");
+      queryClient.invalidateQueries({ queryKey: ["copied-traders"] });
+    },
+    onError: (error) => {
+      setAlertMessage(error.message || "Failed to resume copy trading relationship.");
+      setAlertType("error");
+    },
+  });
+
+  const handleResumeCopy = (copyId: string) => {
+    resumeCopyMutation.mutate(copyId);
+  };
 
   return (
     <div className="space-y-6">
@@ -253,9 +336,17 @@ export const CopyTrading = () => {
           <div className="rounded-2xl border border-border-secondary bg-secondary p-6">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-primary">Traders You're Copying</h2>
-              <Badge color="brand" size="sm">
-                {copiedTraders.length} Active
-              </Badge>
+              <div className="flex flex-wrap gap-2">
+                <Badge color="brand" size="sm">
+                  Active: {activeCopyCount}
+                </Badge>
+                <Badge color="warning" size="sm">
+                  Paused: {pausedCopyCount}
+                </Badge>
+                <Badge color="gray" size="sm">
+                  Stopped: {stoppedCopyCount}
+                </Badge>
+              </div>
             </div>
 
             {copiedTradersQuery.isLoading ? (
@@ -300,11 +391,43 @@ export const CopyTrading = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="text-xs text-tertiary">Win Rate: {trader.winRate}</span>
-                      <Badge color="success" size="sm">
+                    <div className="mt-2 flex items-center justify-between text-xs text-tertiary">
+                      <span>Win Rate: {trader.winRate}</span>
+                      <span>Code: {trader.traderCode}</span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                      <Badge color={getStatusColor(trader.status)} size="sm">
                         {trader.status}
                       </Badge>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          color="secondary"
+                          isDisabled={trader.status !== "ACTIVE" || pauseCopyMutation.isPending}
+                          isLoading={pauseCopyMutation.isPending && pauseCopyMutation.variables === trader.copyId}
+                          onClick={() => handlePauseCopy(trader.copyId)}
+                        >
+                          Pause
+                        </Button>
+                        <Button
+                          size="sm"
+                          color="success"
+                          isDisabled={trader.status !== "PAUSED" || resumeCopyMutation.isPending}
+                          isLoading={resumeCopyMutation.isPending && resumeCopyMutation.variables === trader.copyId}
+                          onClick={() => handleResumeCopy(trader.copyId)}
+                        >
+                          Resume
+                        </Button>
+                        <Button
+                          size="sm"
+                          color="primary-destructive"
+                          isDisabled={trader.status === "STOPPED" || stopCopyMutation.isPending}
+                          isLoading={stopCopyMutation.isPending && stopCopyMutation.variables === trader.copyId}
+                          onClick={() => handleStopCopy(trader.copyId)}
+                        >
+                          Stop
+                        </Button>
+                      </div>
                     </div>
                   </motion.div>
                 ))}
@@ -330,4 +453,3 @@ export const CopyTrading = () => {
     </div>
   );
 };
-

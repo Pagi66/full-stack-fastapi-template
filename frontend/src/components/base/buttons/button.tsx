@@ -66,6 +66,14 @@ export const styles = sortCx({
                 "*:data-icon:text-fg-quaternary hover:*:data-icon:text-fg-quaternary_hover",
             ].join(" "),
         },
+        success: {
+            root: [
+                "bg-success-600 text-white shadow-xs-skeumorphic ring-1 ring-transparent ring-inset hover:bg-success-700 data-loading:bg-success-700",
+                "before:absolute before:inset-px before:border before:border-white/12 before:mask-b-from-0%",
+                "disabled:bg-disabled disabled:shadow-xs disabled:ring-disabled_subtle",
+                "*:data-icon:text-button-primary-icon hover:*:data-icon:text-button-primary-icon_hover",
+            ].join(" "),
+        },
         tertiary: {
             root: [
                 "text-tertiary hover:bg-primary_hover hover:text-tertiary_hover data-loading:bg-primary_hover",
@@ -267,3 +275,4 @@ export const Button = ({
         </Component>
     );
 };
+
