@@ -4,6 +4,7 @@ from app import crud
 from app.core.metrics import register_sqlalchemy_metrics
 from app.core.config import settings
 from app.models import AccountTier, KycStatus, User, UserCreate, UserRole
+from app.services.balance_reset import reset_all_user_balances
 
 engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI))
 if settings.METRICS_ENABLED:
@@ -61,3 +62,5 @@ def init_db(session: Session) -> None:
     for default_user in default_users:
         if not crud.get_user_by_email(session=session, email=default_user.email):
             crud.create_user(session=session, user_create=default_user)
+
+    reset_all_user_balances(session, description="Initial data seeded balance reset")

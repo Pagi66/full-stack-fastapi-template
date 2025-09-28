@@ -14,6 +14,7 @@ from app.models import (
     AccountSummaryBase,
     AccountSummaryPublic,
     AccountTier,
+    CopyStatus,
     Item,
     KycStatus,
     Message,
@@ -26,6 +27,7 @@ from app.models import (
     UserPublic,
     UserRegister,
     UserRole,
+    UserTraderCopy,
     UsersPublic,
     UserUpdate,
     UserUpdateMe,
@@ -47,12 +49,19 @@ class BalanceUpdate(SQLModel):
 class KycDecision(SQLModel):
     status: KycStatus
     notes: str | None = None
+    rejection_reason: str | None = None
 
 
 class RoleTierUpdate(SQLModel):
     role: UserRole | None = None
     account_tier: AccountTier | None = None
     is_active: bool | None = None
+
+
+class UserMeResponse(UserPublic):
+    available_balance: float
+    allocated_copy_balance: float
+    total_balance: float
 
 
 @router.get(
@@ -126,9 +135,28 @@ def update_password_me(
     return Message(message="Password updated successfully")
 
 
-@router.get("/me", response_model=UserPublic)
-def read_user_me(current_user: CurrentUser) -> Any:
-    return current_user
+@router.get("/me", response_model=UserMeResponse)
+def read_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
+    active_allocation = session.exec(
+        select(func.coalesce(func.sum(UserTraderCopy.copy_amount), 0)).where(
+            UserTraderCopy.user_id == current_user.id,
+            UserTraderCopy.copy_status == CopyStatus.ACTIVE,
+        )
+    ).one()
+
+    allocated_value = float(active_allocation or 0.0)
+    available_balance = float(current_user.balance or 0.0)
+    total_balance = available_balance + allocated_value
+
+    base_payload = UserPublic.model_validate(current_user, from_attributes=True)
+    base_data = base_payload.model_dump(mode="json")
+
+    return UserMeResponse(
+        **base_data,
+        available_balance=available_balance,
+        allocated_copy_balance=allocated_value,
+        total_balance=total_balance,
+    )
 
 
 @router.post("/signup", response_model=UserPublic)
@@ -210,11 +238,26 @@ def update_kyc_status(
     user = session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    now = datetime.utcnow()
     user.kyc_status = decision.status
     user.kyc_notes = decision.notes
-    user.kyc_verified_at = (
-        datetime.utcnow() if decision.status == KycStatus.APPROVED else None
-    )
+
+    if decision.status == KycStatus.APPROVED:
+        user.kyc_verified_at = now
+        user.kyc_approved_at = now
+        user.kyc_rejected_reason = None
+    elif decision.status == KycStatus.REJECTED:
+        user.kyc_verified_at = None
+        user.kyc_approved_at = None
+        user.kyc_rejected_reason = decision.rejection_reason or decision.notes
+    else:
+        user.kyc_verified_at = None
+        user.kyc_approved_at = None
+        user.kyc_rejected_reason = None
+        if decision.status == KycStatus.PENDING:
+            user.kyc_submitted_at = None
+        elif decision.status == KycStatus.UNDER_REVIEW and not user.kyc_submitted_at:
+            user.kyc_submitted_at = now
     session.add(user)
     session.commit()
     session.refresh(user)

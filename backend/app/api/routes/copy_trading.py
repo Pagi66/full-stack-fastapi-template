@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -10,7 +11,18 @@ from pydantic import computed_field
 from sqlmodel import SQLModel, func, select
 
 from app.api.deps import CurrentUser, SessionDep
-from app.models import CopyStatus, RiskTolerance, TraderProfile, User, UserTraderCopy
+from app.models import (
+    CopyStatus,
+    ExecutionEvent,
+    ExecutionEventType,
+    RiskTolerance,
+    TraderProfile,
+    Transaction,
+    TransactionStatus,
+    TransactionType,
+    User,
+    UserTraderCopy,
+)
 
 
 router = APIRouter(prefix="/copy-trading", tags=["copy-trading"])
@@ -104,6 +116,24 @@ def _build_copied_trader(copy: UserTraderCopy) -> "CopiedTraderSummary":
         status=copy.copy_status,
     )
 
+def _record_balance_delta(
+    session: SessionDep,
+    *,
+    user_id: uuid.UUID,
+    amount: float,
+    description: str,
+) -> None:
+    transaction = Transaction(
+        user_id=user_id,
+        amount=round(amount, 2),
+        transaction_type=TransactionType.ADJUSTMENT,
+        status=TransactionStatus.COMPLETED,
+        description=description,
+        executed_at=datetime.utcnow(),
+    )
+    session.add(transaction)
+
+
 
 class TraderSummary(SQLModel):
     id: uuid.UUID
@@ -151,6 +181,7 @@ class CopyTradingStartRequest(SQLModel):
 class CopyTradingStartResponse(SQLModel):
     success: bool
     message: str
+    available_balance: float
     copied_trader: CopiedTraderSummary | None = None
 
 
@@ -165,9 +196,42 @@ class CopiedTradersResponse(SQLModel):
     count: int
 
 
+class ExecutionFeedEvent(SQLModel):
+    id: uuid.UUID
+    event_type: ExecutionEventType
+    description: str
+    amount: float
+    symbol: str | None = None
+    trader_display_name: str | None = None
+    trader_code: str | None = None
+    created_at: datetime
+
+    @computed_field(return_type=str, alias="eventType")
+    def event_type_camel(self) -> str:
+        return getattr(self.event_type, "value", str(self.event_type))
+
+    @computed_field(return_type=str | None, alias="traderDisplayName")
+    def trader_display_name_camel(self) -> str | None:
+        return self.trader_display_name
+
+    @computed_field(return_type=str | None, alias="traderCode")
+    def trader_code_camel(self) -> str | None:
+        return self.trader_code
+
+    @computed_field(return_type=str, alias="createdAt")
+    def created_at_iso(self) -> str:
+        return self.created_at.isoformat()
+
+
+class ExecutionFeedResponse(SQLModel):
+    data: list[ExecutionFeedEvent]
+    count: int
+
+
 class CopyTradingUpdateResponse(SQLModel):
     success: bool
     message: str
+    available_balance: float
     copied_trader: CopiedTraderSummary
 
 
@@ -330,26 +394,36 @@ def start_copy_trading(
             detail="Insufficient balance to allocate funds for copy trading",
         )
 
+    allocation_amount = round(payload.allocation_amount, 2)
+
     copy_entry = UserTraderCopy(
         user_id=current_user.id,
         trader_profile_id=trader.id,
-        copy_amount=payload.allocation_amount,
+        copy_amount=allocation_amount,
         copy_status=CopyStatus.ACTIVE,
-        copy_settings={"source": "manual", "initial_allocation": payload.allocation_amount},
+        copy_settings={"source": "manual", "initial_allocation": allocation_amount},
     )
 
     session.add(copy_entry)
 
-    current_user.balance = round(current_user.balance - payload.allocation_amount, 2)
+    current_user.balance = round(current_user.balance - allocation_amount, 2)
     session.add(current_user)
 
     trader.total_copiers = (trader.total_copiers or 0) + 1
-    trader.total_assets_under_copy = (trader.total_assets_under_copy or 0.0) + payload.allocation_amount
+    trader.total_assets_under_copy = (trader.total_assets_under_copy or 0.0) + allocation_amount
     session.add(trader)
+
+    _record_balance_delta(
+        session,
+        user_id=current_user.id,
+        amount=-allocation_amount,
+        description=f"Copy trading allocation for {trader.display_name or trader.id}",
+    )
 
     session.commit()
     session.refresh(current_user, attribute_names=["balance"])
     session.refresh(copy_entry, attribute_names=["trader_profile"])
+    session.refresh(copy_entry, attribute_names=["user"])
     session.refresh(trader, attribute_names=["user"])
 
     if copy_entry.trader_profile:
@@ -358,9 +432,14 @@ def start_copy_trading(
     copied_summary = _build_copied_trader(copy_entry)
     message = (
         f"Copy trading started for {copied_summary.display_name} with allocation "
-        f"${payload.allocation_amount:,.2f}"
+        f"${allocation_amount:,.2f}"
     )
-    return CopyTradingStartResponse(success=True, message=message, copied_trader=copied_summary)
+    return CopyTradingStartResponse(
+        success=True,
+        message=message,
+        available_balance=current_user.balance,
+        copied_trader=copied_summary,
+    )
 
 
 @router.post("/copied/{copy_id}/pause", response_model=CopyTradingUpdateResponse)
@@ -383,6 +462,7 @@ def pause_copy_relationship(
         return CopyTradingUpdateResponse(
             success=True,
             message="Copy relationship is already paused",
+            available_balance=copy.user.balance if copy.user else current_user.balance,
             copied_trader=copied_summary,
         )
 
@@ -394,13 +474,16 @@ def pause_copy_relationship(
         session.add(copy.trader_profile)
     session.commit()
     session.refresh(copy, attribute_names=["trader_profile"])
+    session.refresh(copy, attribute_names=["user"])
     if copy.trader_profile:
         session.refresh(copy.trader_profile, attribute_names=["user"])
 
     copied_summary = _build_copied_trader(copy)
+    available_balance = copy.user.balance if copy.user else current_user.balance
     return CopyTradingUpdateResponse(
         success=True,
         message="Copy relationship paused",
+        available_balance=available_balance,
         copied_trader=copied_summary,
     )
 
@@ -422,6 +505,7 @@ def stop_copy_relationship(
         return CopyTradingUpdateResponse(
             success=True,
             message="Copy relationship already stopped",
+            available_balance=copy.user.balance if copy.user else current_user.balance,
             copied_trader=copied_summary,
         )
 
@@ -430,8 +514,15 @@ def stop_copy_relationship(
 
     session.refresh(copy, attribute_names=["user"])
     if copy.user:
-        copy.user.balance = round(copy.user.balance + copy.copy_amount, 2)
+        refund_amount = round(copy.copy_amount, 2)
+        copy.user.balance = round(copy.user.balance + refund_amount, 2)
         session.add(copy.user)
+        _record_balance_delta(
+            session,
+            user_id=copy.user.id,
+            amount=refund_amount,
+            description="Copy trading allocation released",
+        )
 
     session.add(copy)
     if copy.trader_profile:
@@ -443,9 +534,11 @@ def stop_copy_relationship(
         session.refresh(copy.trader_profile, attribute_names=["user"])
 
     copied_summary = _build_copied_trader(copy)
+    available_balance = copy.user.balance if copy.user else current_user.balance
     return CopyTradingUpdateResponse(
         success=True,
         message="Copy relationship stopped",
+        available_balance=available_balance,
         copied_trader=copied_summary,
     )
 
@@ -467,6 +560,7 @@ def resume_copy_relationship(
         return CopyTradingUpdateResponse(
             success=True,
             message="Copy relationship is already active",
+            available_balance=copy.user.balance if copy.user else current_user.balance,
             copied_trader=copied_summary,
         )
 
@@ -481,15 +575,69 @@ def resume_copy_relationship(
         session.add(copy.trader_profile)
     session.commit()
     session.refresh(copy, attribute_names=["trader_profile"])
+    session.refresh(copy, attribute_names=["user"])
     if copy.trader_profile:
         session.refresh(copy.trader_profile, attribute_names=["user"])
 
     copied_summary = _build_copied_trader(copy)
+    available_balance = copy.user.balance if copy.user else current_user.balance
     return CopyTradingUpdateResponse(
         success=True,
         message="Copy relationship resumed",
+        available_balance=available_balance,
         copied_trader=copied_summary,
     )
+
+
+@router.get("/executions", response_model=ExecutionFeedResponse)
+def read_execution_feed(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    limit: int = 25,
+) -> Any:
+    limit = max(1, min(limit, 100))
+    statement = (
+        select(ExecutionEvent)
+        .where(ExecutionEvent.user_id == current_user.id)
+        .order_by(ExecutionEvent.created_at.desc())
+        .limit(limit)
+    )
+
+    events = session.exec(statement).all()
+    feed_items: list[ExecutionFeedEvent] = []
+
+    for event in events:
+        trader_display_name: str | None = None
+        trader_code: str | None = None
+        if event.trader_profile_id:
+            trader_profile = session.get(TraderProfile, event.trader_profile_id)
+            if trader_profile is not None:
+                trader_display_name = trader_profile.display_name
+                trader_code = trader_profile.trader_code
+
+        payload = event.payload or {}
+        if trader_display_name is None and isinstance(payload.get("trader_display_name"), str):
+            trader_display_name = payload["trader_display_name"]
+        if trader_code is None and isinstance(payload.get("trader_code"), str):
+            trader_code = payload["trader_code"]
+
+        symbol = payload.get("symbol") if isinstance(payload.get("symbol"), str) else None
+
+        feed_items.append(
+            ExecutionFeedEvent(
+                id=event.id,
+                event_type=event.event_type,
+                description=event.description,
+                amount=float(event.amount or 0.0),
+                symbol=symbol,
+                trader_display_name=trader_display_name,
+                trader_code=trader_code,
+                created_at=event.created_at,
+            )
+        )
+
+    return ExecutionFeedResponse(data=feed_items, count=len(feed_items))
 
 
 @router.get("/summary", response_model=CopyTradingAggregateResponse)
@@ -528,5 +676,7 @@ __all__ = [
     "CopiedTradersResponse",
     "CopiedTraderSummary",
     "CopyTradingUpdateResponse",
+    "ExecutionFeedEvent",
+    "ExecutionFeedResponse",
     "CopyTradingAggregateResponse",
 ]

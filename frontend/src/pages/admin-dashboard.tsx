@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
@@ -7,8 +7,14 @@ import {
 import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { Avatar } from "@/components/base/avatar/avatar";
+import { Input } from "@/components/base/input/input";
 import { TradersList } from "@/components/dashboard/traders-list";
-import { AdminService } from "@/api/services/AdminService";
+import {
+  AdminService,
+  type ManualProfitRequest,
+  type ManualProfitResponse,
+  type SimulationTriggerResponse,
+} from "@/api/services/AdminService";
 import { TransactionsService } from "@/api/services/TransactionsService";
 import {
   UsersService,
@@ -36,6 +42,9 @@ export const Dashboard = () => {
   const { user, logout } = useAuth();
   const queryClient = useQueryClient();
   const [selectedUser, setSelectedUser] = useState<UserPublic | null>(null);
+  const [manualProfitUserId, setManualProfitUserId] = useState<string>("");
+  const [manualProfitAmount, setManualProfitAmount] = useState<string>("");
+  const [manualProfitDescription, setManualProfitDescription] = useState<string>("");
 
   const dashboardQuery = useQuery({
     queryKey: ["admin-dashboard"],
@@ -49,6 +58,11 @@ export const Dashboard = () => {
   });
 
   const users = usersQuery.data?.data ?? [];
+  useEffect(() => {
+    if (!manualProfitUserId && users.length > 0) {
+      setManualProfitUserId(users[0].id);
+    }
+  }, [manualProfitUserId, users]);
   const onlineUsers = dashboard?.online_users ?? [];
   const pendingKycQueue = dashboard?.pending_kyc ?? [];
   const pendingDeposits = dashboard?.pending_deposits ?? [];
@@ -91,6 +105,34 @@ export const Dashboard = () => {
     },
   });
 
+  const runSimulation = useMutation<SimulationTriggerResponse, Error, { traderProfileId?: string }>({
+    mutationFn: ({ traderProfileId }) =>
+      AdminService.adminRunSimulation(
+        traderProfileId ? { trader_profile_id: traderProfileId } : {},
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['execution-feed'] });
+      queryClient.invalidateQueries({ queryKey: ['copied-traders'] });
+    },
+  });
+
+  const manualProfit = useMutation<
+    ManualProfitResponse,
+    Error,
+    ManualProfitRequest & { userId: string }
+  >({
+    mutationFn: ({ userId, amount, description }) =>
+      AdminService.adminGrantManualProfit(userId, { amount, description }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['execution-feed'] });
+      setManualProfitAmount('');
+      setManualProfitDescription('');
+    },
+  });
+
   const submitKycDecision = (id: string, status: 'approved' | 'rejected', notes?: string | null) => {
     approveKyc.mutate({ id, status, notes });
   };
@@ -118,6 +160,27 @@ export const Dashboard = () => {
 
   const isApprovingKyc = approveKyc.isPending;
   const isUpdatingTransaction = updateTransactionStatus.isPending;
+
+  const handleRunSimulation = () => {
+    runSimulation.mutate({});
+  };
+
+  const handleManualProfitSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!manualProfitUserId) {
+      return;
+    }
+    const amountValue = Number(manualProfitAmount);
+    if (!Number.isFinite(amountValue) || amountValue === 0) {
+      return;
+    }
+
+    manualProfit.mutate({
+      userId: manualProfitUserId,
+      amount: amountValue,
+      description: manualProfitDescription.trim() || undefined,
+    });
+  };
 
   const stats = useMemo(() => {
     const totals = dashboard?.totals;
@@ -218,22 +281,103 @@ export const Dashboard = () => {
           ))}
         </section>
 
+        <section className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-fg-primary">Simulation Controls</h2>
+              <p className="text-sm text-fg-tertiary">Trigger copy simulations and post manual adjustments.</p>
+            </div>
+            <Button
+              color="primary"
+              onClick={handleRunSimulation}
+              isLoading={runSimulation.isPending}
+              disabled={runSimulation.isPending}
+            >
+              Run Copy Simulation
+            </Button>
+          </div>
+          {runSimulation.isSuccess && (
+            <p className="mt-2 text-xs text-success-600">
+              {`Simulation completed (${runSimulation.data?.events_recorded ?? 0} events logged).`}
+            </p>
+          )}
+          {runSimulation.isError && (
+            <p className="mt-2 text-xs text-error-600">
+              {runSimulation.error instanceof Error
+                ? runSimulation.error.message
+                : 'Failed to trigger simulation.'}
+            </p>
+          )}
+          <form onSubmit={handleManualProfitSubmit} className="mt-6 grid gap-4 md:grid-cols-4">
+            <label className="flex flex-col gap-2 text-sm text-fg-tertiary">
+              Target User
+              <select
+                className="rounded-md border border-border-secondary bg-bg-primary px-3 py-2 text-sm text-fg-primary"
+                value={manualProfitUserId}
+                onChange={(event) => setManualProfitUserId(event.target.value)}
+              >
+                {users.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.email}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-2 text-sm text-fg-tertiary">
+              Amount
+              <Input
+                type="number"
+                value={manualProfitAmount}
+                onChange={(event) => setManualProfitAmount(event.target.value)}
+                placeholder="e.g. 125.00"
+                step="0.01"
+                required
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm text-fg-tertiary md:col-span-2">
+              Description
+              <Input
+                value={manualProfitDescription}
+                onChange={(event) => setManualProfitDescription(event.target.value)}
+                placeholder="Reason for adjustment"
+              />
+            </label>
+            <div className="flex items-end">
+              <Button
+                type="submit"
+                color="success"
+                isLoading={manualProfit.isPending}
+                disabled={manualProfit.isPending || !manualProfitUserId}
+              >
+                Grant Profit
+              </Button>
+            </div>
+          </form>
+          {manualProfit.isError && (
+            <p className="mt-2 text-xs text-error-600">
+              {manualProfit.error instanceof Error
+                ? manualProfit.error.message
+                : 'Failed to grant profit.'}
+            </p>
+          )}
+          {manualProfit.isSuccess && (
+            <p className="mt-2 text-xs text-success-600">Manual adjustment posted successfully.</p>
+          )}
+        </section>
+
         {/* Admin Navigation */}
         <section className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
           <h2 className="text-lg font-semibold text-fg-primary mb-4">Admin Tools</h2>
           <div className="grid gap-4 md:grid-cols-2">
             <Link to="/admin/trader-manager">
-              <div className="rounded-lg border border-border-secondary bg-bg-secondary p-4 hover:bg-bg-tertiary transition-colors cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-brand-100 p-2">
-                    <Users03 className="size-5 text-brand-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-fg-primary">Trader Manager</h3>
-                    <p className="text-sm text-fg-tertiary">Create and manage trader profiles</p>
-                  </div>
-                </div>
-              </div>
+              <Button color="secondary" size="sm">
+                Launch trader manager
+              </Button>
+            </Link>
+            <Link to="/admin/kyc-review">
+              <Button color="primary" size="sm">
+                Review KYC queue
+              </Button>
             </Link>
             <div className="rounded-lg border border-border-secondary bg-bg-secondary p-4">
               <div className="flex items-center gap-3">
@@ -497,7 +641,13 @@ export const Dashboard = () => {
                         <Badge
                           type="color"
                           size="sm"
-                          color={item.kyc_status === 'approved' ? 'success' : item.kyc_status === 'pending' ? 'warning' : 'error'}
+                          color={
+                  item.kyc_status === 'approved'
+                    ? 'success'
+                    : item.kyc_status === 'pending' || item.kyc_status === 'under_review'
+                    ? 'warning'
+                    : 'error'
+                }
                         >
                           {item.kyc_status}
                         </Badge>

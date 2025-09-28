@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from "react";
-import { Activity, TrendUp01, Wallet01, ShieldTick, Zap, Users01 } from "@untitledui/icons";
+import { Activity, TrendUp01, Wallet01, ShieldTick, Users01 } from "@untitledui/icons";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { useLocation } from "@tanstack/react-router";
@@ -13,6 +13,7 @@ import {
 } from "@/api/services/PortfolioService";
 import { TransactionsService } from "@/api/services/TransactionsService";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
+import { CopyTradingService, type ExecutionFeedEvent } from "@/api/services/CopyTradingService";
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
@@ -58,6 +59,15 @@ export const UserDashboard = ({ children }: { children?: ReactNode }) => {
     enabled: isRootDashboard,
   });
 
+  const executionFeedQuery = useQuery({
+    queryKey: ["execution-feed"],
+    queryFn: () => CopyTradingService.getExecutionFeed({ limit: 10 }),
+    refetchInterval: isRootDashboard ? 8000 : false,
+    enabled: isRootDashboard,
+  });
+
+  const executionFeed = executionFeedQuery.data ?? [];
+
   const summary = accountSummaryQuery.data;
   const trades = tradesQuery.data?.data ?? [];
   const dailyPerformance = performanceQuery.data?.data ?? [];
@@ -69,32 +79,43 @@ export const UserDashboard = ({ children }: { children?: ReactNode }) => {
       tradesQuery.isLoading ||
       performanceQuery.isLoading ||
       transactionsQuery.isLoading ||
-      marketDataQuery.isLoading);
+      marketDataQuery.isLoading ||
+      executionFeedQuery.isLoading);
 
   const portfolioTelemetry = useMemo(() => {
     if (!isRootDashboard) {
       return [];
     }
 
-    const realBalance = user?.balance || 0;
+    const cashBalance = user?.availableBalance ?? user?.balance ?? 0;
+    const allocatedCopy = user?.allocatedCopyBalance ?? 0;
+    const totalBalance = user?.totalBalance ?? cashBalance + allocatedCopy;
     const simulatedProfit = summary?.net_profit || 0;
-    const roi = realBalance > 0 ? (simulatedProfit / realBalance) * 100 : 0;
+    const roi = totalBalance > 0 ? (simulatedProfit / totalBalance) * 100 : 0;
 
     return [
       {
-        title: "Current Balance",
-        value: formatCurrency(realBalance),
+        title: "Available Balance",
+        value: formatCurrency(cashBalance),
         icon: Wallet01,
         change: user?.account_tier ?? "Tier",
         changeLabel: "Account tier",
         color: "success" as const,
       },
       {
+        title: "Allocated to Copy",
+        value: formatCurrency(allocatedCopy),
+        icon: Users01,
+        change: `${executionFeed.length} recent`,
+        changeLabel: "Recent executions",
+        color: "brand" as const,
+      },
+      {
         title: "Net P&L",
         value: formatCurrency(simulatedProfit),
         icon: TrendUp01,
         change: `${roi.toFixed(2)}%`,
-        changeLabel: "ROI",
+        changeLabel: "ROI vs total balance",
         color: simulatedProfit >= 0 ? ("success" as const) : ("error" as const),
       },
       {
@@ -105,42 +126,20 @@ export const UserDashboard = ({ children }: { children?: ReactNode }) => {
         changeLabel: "7-day trend",
         color: "brand" as const,
       },
-      {
-        title: "Active Trades",
-        value: trades.filter((trade) => trade.status === "open").length.toString(),
-        icon: Zap,
-        change: `${Math.floor(Math.random() * 5)} new`,
-        changeLabel: "Live positions",
-        color: "warning" as const,
-      },
     ];
-  }, [isRootDashboard, user, summary, trades]);
+  }, [executionFeed.length, isRootDashboard, summary, trades, user]);
 
   const liveExecutions = useMemo(
-    () => [
-      {
-        time: "09:45:23",
-        asset: "BTC/USD",
-        action: "BUY" as const,
-        quantity: "0.25",
-        price: "$64,123.45",
-      },
-      {
-        time: "09:42:11",
-        asset: "SPX500",
-        action: "SELL" as const,
-        quantity: "2",
-        price: "$5,234.67",
-      },
-      {
-        time: "09:40:05",
-        asset: "ETH/USD",
-        action: "BUY" as const,
-        quantity: "1.5",
-        price: "$3,456.78",
-      },
-    ],
-    []
+    () =>
+      executionFeed.map((event) => ({
+        id: event.id,
+        timestamp: new Date(event.createdAt),
+        trader: event.traderDisplayName ?? "Manual Adjustment",
+        symbol: event.symbol ?? "—",
+        amount: event.amount,
+        type: event.eventType,
+      })),
+    [executionFeed]
   );
 
   const renderDailyPerformance = (entries: DailyPerformanceEntry[]) => {
@@ -271,22 +270,49 @@ export const UserDashboard = ({ children }: { children?: ReactNode }) => {
           </div>
         </div>
         <div className="space-y-3">
-          {liveExecutions.map((exec, index) => (
-            <motion.div
-              key={`${exec.time}-${index}`}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center justify-between rounded-lg border border-secondary bg-primary p-3"
-            >
-              <span className="font-mono text-sm text-tertiary">{exec.time}</span>
-              <span className="font-medium text-primary">{exec.asset}</span>
-              <Badge size="sm" color={exec.action === "BUY" ? "success" : "error"}>
-                {exec.action}
-              </Badge>
-              <span className="text-sm text-primary">{exec.quantity}</span>
-              <span className="text-sm font-semibold text-primary">{exec.price}</span>
-            </motion.div>
-          ))}
+          {executionFeedQuery.isLoading ? (
+            <div className="flex justify-center py-6">
+              <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-brand-primary" />
+            </div>
+          ) : liveExecutions.length === 0 ? (
+            <div className="rounded-lg border border-secondary bg-primary p-4 text-center text-sm text-tertiary">
+              No executions yet. Start copying a trader to see live activity.
+            </div>
+          ) : (
+            liveExecutions.map((event) => (
+              <motion.div
+                key={event.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center justify-between rounded-lg border border-secondary bg-primary p-3"
+              >
+                <span className="font-mono text-xs text-tertiary">
+                  {event.timestamp.toLocaleTimeString()}
+                </span>
+                <span className="flex-1 px-3 text-sm text-primary">{event.trader}</span>
+                <Badge
+                  size="sm"
+                  color={
+                    event.type === 'FOLLOWER_PROFIT'
+                      ? 'success'
+                      : event.type === 'TRADER_SIMULATION'
+                      ? 'brand'
+                      : 'warning'
+                  }
+                >
+                  {event.type.replace('_', ' ')}
+                </Badge>
+                <span className="px-3 text-sm text-tertiary">{event.symbol}</span>
+                <span
+                  className={`text-sm font-semibold ${
+                    event.amount >= 0 ? 'text-success-600' : 'text-error-600'
+                  }`}
+                >
+                  {formatCurrency(event.amount)}
+                </span>
+              </motion.div>
+            ))
+          )}
         </div>
       </section>
 

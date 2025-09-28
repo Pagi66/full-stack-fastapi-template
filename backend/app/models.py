@@ -1,6 +1,7 @@
 import uuid
 from datetime import date, datetime
 from enum import Enum
+from typing import Optional
 
 from pydantic import EmailStr
 from sqlalchemy import Column, JSON
@@ -16,9 +17,17 @@ class UserRole(str, Enum):
 
 class KycStatus(str, Enum):
     PENDING = "PENDING"
+    UNDER_REVIEW = "UNDER_REVIEW"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
 
+
+
+class KycDocumentType(str, Enum):
+    PASSPORT = "passport"
+    DRIVERS_LICENSE = "drivers_license"
+    NATIONAL_ID = "national_id"
+    PROOF_OF_ADDRESS = "proof_of_address"
 
 
 class AccountTier(str, Enum):
@@ -70,6 +79,12 @@ class CopyStatus(str, Enum):
     ACTIVE = "ACTIVE"
     PAUSED = "PAUSED"
     STOPPED = "STOPPED"
+
+
+class ExecutionEventType(str, Enum):
+    TRADER_SIMULATION = "TRADER_SIMULATION"
+    FOLLOWER_PROFIT = "FOLLOWER_PROFIT"
+    MANUAL_ADJUSTMENT = "MANUAL_ADJUSTMENT"
 
 
 
@@ -129,7 +144,10 @@ class User(UserBase, table=True):
         sa_column=Column(SAEnum(KycStatus, name="kycstatus"), nullable=False, server_default=KycStatus.PENDING.value),
         default=KycStatus.PENDING,
     )
+    kyc_submitted_at: datetime | None = Field(default=None)
+    kyc_approved_at: datetime | None = Field(default=None)
     kyc_verified_at: datetime | None = Field(default=None)
+    kyc_rejected_reason: str | None = Field(default=None)
     kyc_notes: str | None = Field(default=None, max_length=255)
     last_login_at: datetime | None = Field(default=None)
     oauth_provider: str | None = Field(default=None, max_length=50)
@@ -139,6 +157,15 @@ class User(UserBase, table=True):
     refresh_token_expires_at: datetime | None = Field(default=None)
     failed_login_attempts: int = Field(default=0)
     account_locked_until: datetime | None = Field(default=None)
+    profile: Optional["UserProfile"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"uselist": False, "cascade": "all, delete-orphan"},
+    )
+    kyc_documents: list["KycDocument"] = Relationship(
+        back_populates="user", 
+        cascade_delete=True,
+        sa_relationship_kwargs={"foreign_keys": "[KycDocument.user_id]"}
+    )
     items: list["Item"] = Relationship(back_populates="owner", cascade_delete=True)
     transactions: list["Transaction"] = Relationship(back_populates="user", cascade_delete=True)
     trades: list["Trade"] = Relationship(back_populates="user", cascade_delete=True)
@@ -147,6 +174,7 @@ class User(UserBase, table=True):
     account_summaries: list["AccountSummary"] = Relationship(back_populates="user", cascade_delete=True)
     trader_profile: "TraderProfile" = Relationship(back_populates="user", cascade_delete=True)
     user_trader_copies: list["UserTraderCopy"] = Relationship(back_populates="user", cascade_delete=True)
+    execution_events: list["ExecutionEvent"] = Relationship(back_populates="user", cascade_delete=True)
 
 
 class UserPublic(UserBase):
@@ -155,13 +183,104 @@ class UserPublic(UserBase):
     role: UserRole
     account_tier: AccountTier
     kyc_status: KycStatus
+    kyc_submitted_at: datetime | None
+    kyc_approved_at: datetime | None
     kyc_verified_at: datetime | None
+    kyc_rejected_reason: str | None
     kyc_notes: str | None
     last_login_at: datetime | None
 
 
 class UsersPublic(SQLModel):
     data: list[UserPublic]
+    count: int
+
+
+class UserProfileBase(SQLModel):
+    legal_first_name: str | None = Field(default=None, max_length=100)
+    legal_last_name: str | None = Field(default=None, max_length=100)
+    date_of_birth: date | None = None
+    phone_number: str | None = Field(default=None, max_length=20)
+    address_line_1: str | None = Field(default=None)
+    address_line_2: str | None = Field(default=None)
+    city: str | None = Field(default=None, max_length=100)
+    state: str | None = Field(default=None, max_length=100)
+    postal_code: str | None = Field(default=None, max_length=20)
+    country: str | None = Field(default=None, max_length=100)
+    tax_id_number: str | None = Field(default=None, max_length=50)
+    occupation: str | None = Field(default=None, max_length=100)
+    source_of_funds: str | None = Field(default=None, max_length=100)
+
+
+class UserProfileCreate(UserProfileBase):
+    user_id: uuid.UUID
+    risk_assessment_score: int = Field(default=0, ge=0, le=100)
+
+
+class UserProfileUpdate(UserProfileBase):
+    risk_assessment_score: int | None = Field(default=None, ge=0, le=100)
+
+
+class UserProfile(UserProfileBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", unique=True, nullable=False)
+    risk_assessment_score: int = Field(default=0, ge=0, le=100)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        sa_column_kwargs={"onupdate": datetime.utcnow},
+    )
+    user: "User" = Relationship(
+        back_populates="profile",
+        sa_relationship_kwargs={"uselist": False},
+    )
+
+
+class UserProfilePublic(UserProfileBase):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    risk_assessment_score: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class UserProfilesPublic(SQLModel):
+    data: list[UserProfilePublic]
+    count: int
+
+
+class KycDocument(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", nullable=False)
+    document_type: KycDocumentType = Field(
+        sa_column=Column(SAEnum(KycDocumentType, name="kycdocumenttype"), nullable=False)
+    )
+    front_image_url: str | None = Field(default=None)
+    back_image_url: str | None = Field(default=None)
+    verified: bool = Field(default=False)
+    verified_by: uuid.UUID | None = Field(default=None, foreign_key="user.id")
+    verified_at: datetime | None = Field(default=None)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    user: "User" = Relationship(
+        back_populates="kyc_documents",
+        sa_relationship_kwargs={"foreign_keys": "[KycDocument.user_id]"}
+    )
+
+
+class KycDocumentPublic(SQLModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    document_type: KycDocumentType
+    front_image_url: str | None
+    back_image_url: str | None
+    verified: bool
+    verified_by: uuid.UUID | None
+    verified_at: datetime | None
+    created_at: datetime
+
+
+class KycDocumentsPublic(SQLModel):
+    data: list[KycDocumentPublic]
     count: int
 
 
@@ -449,6 +568,7 @@ class TraderProfile(TraderProfileBase, table=True):
     user: User = Relationship(back_populates="trader_profile")
     user_trader_copies: list["UserTraderCopy"] = Relationship(back_populates="trader_profile", cascade_delete=True)
     trader_trades: list["TraderTrade"] = Relationship(back_populates="trader_profile", cascade_delete=True)
+    execution_events: list["ExecutionEvent"] = Relationship(back_populates="trader_profile", cascade_delete=True)
 
 
 class TraderProfilePublic(TraderProfileBase):
@@ -539,3 +659,22 @@ class TraderTradePublic(TraderTradeBase):
 class TraderTradesPublic(SQLModel):
     data: list[TraderTradePublic]
     count: int
+
+
+class ExecutionEvent(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    event_type: ExecutionEventType = Field(
+        sa_column=Column(
+            SAEnum(ExecutionEventType, name="executioneventtype"),
+            nullable=False,
+        ),
+        default=ExecutionEventType.TRADER_SIMULATION,
+    )
+    description: str = Field(max_length=255)
+    amount: float | None = None
+    payload: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id")
+    trader_profile_id: uuid.UUID | None = Field(default=None, foreign_key="traderprofile.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    user: Optional["User"] = Relationship(back_populates="execution_events")
+    trader_profile: Optional["TraderProfile"] = Relationship(back_populates="execution_events")

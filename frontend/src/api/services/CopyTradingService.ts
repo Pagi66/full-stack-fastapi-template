@@ -2,6 +2,10 @@ import { OpenAPI } from "../core/OpenAPI";
 
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH";
 export type TraderStatus = "ACTIVE" | "PAUSED" | "STOPPED";
+export type ExecutionEventType =
+  | "TRADER_SIMULATION"
+  | "FOLLOWER_PROFIT"
+  | "MANUAL_ADJUSTMENT";
 
 export interface TraderSummary {
   id: string;
@@ -28,12 +32,14 @@ export interface CopiedTrader extends TraderSummary {
 export interface StartCopyTradingResponse {
   success: boolean;
   message: string;
+  availableBalance: number;
   copiedTrader?: CopiedTrader;
 }
 
 export interface UpdateCopyTradingResponse {
   success: boolean;
   message: string;
+  availableBalance: number;
   copiedTrader: CopiedTrader;
 }
 
@@ -41,6 +47,17 @@ export interface CopyTradingSummary {
   active: number;
   paused: number;
   stopped: number;
+}
+
+export interface ExecutionFeedEvent {
+  id: string;
+  eventType: ExecutionEventType;
+  description: string;
+  amount: number;
+  symbol?: string;
+  traderDisplayName?: string | null;
+  traderCode?: string | null;
+  createdAt: string;
 }
 
 type BackendTraderSummary = {
@@ -73,12 +90,14 @@ type BackendCopiedResponse = {
 type BackendStartResponse = {
   success: boolean;
   message: string;
+  available_balance: number;
   copied_trader?: BackendCopiedTrader | null;
 };
 
 type BackendUpdateResponse = {
   success: boolean;
   message: string;
+  available_balance: number;
   copied_trader: BackendCopiedTrader;
 };
 
@@ -86,6 +105,22 @@ type BackendSummaryResponse = {
   active: number;
   paused: number;
   stopped: number;
+};
+
+type BackendExecutionFeedEvent = {
+  id: string;
+  event_type: ExecutionEventType;
+  description: string;
+  amount: number | null;
+  symbol?: string | null;
+  trader_display_name?: string | null;
+  trader_code?: string | null;
+  created_at: string;
+};
+
+type BackendExecutionFeedResponse = {
+  data: BackendExecutionFeedEvent[];
+  count: number;
 };
 
 const apiBase = () => (OpenAPI.BASE ?? "").replace(/\/$/, "");
@@ -135,6 +170,17 @@ const mapCopiedTrader = (payload: BackendCopiedTrader): CopiedTrader => ({
   copyId: payload.copy_id,
   allocation: payload.allocation,
   status: payload.status,
+});
+
+const mapExecutionFeedEvent = (payload: BackendExecutionFeedEvent): ExecutionFeedEvent => ({
+  id: payload.id,
+  eventType: payload.event_type,
+  description: payload.description,
+  amount: typeof payload.amount === "number" ? payload.amount : 0,
+  symbol: payload.symbol ?? undefined,
+  traderDisplayName: payload.trader_display_name ?? undefined,
+  traderCode: payload.trader_code ?? undefined,
+  createdAt: payload.created_at,
 });
 
 const authorizedFetch = async <T>(path: string, init: RequestInit): Promise<T> => {
@@ -212,6 +258,7 @@ export class CopyTradingService {
     return {
       success: payload.success,
       message: payload.message,
+      availableBalance: payload.available_balance,
       copiedTrader: payload.copied_trader ? mapCopiedTrader(payload.copied_trader) : undefined,
     };
   }
@@ -227,6 +274,7 @@ export class CopyTradingService {
     return {
       success: payload.success,
       message: payload.message,
+      availableBalance: payload.available_balance,
       copiedTrader: mapCopiedTrader(payload.copied_trader),
     };
   }
@@ -242,6 +290,7 @@ export class CopyTradingService {
     return {
       success: payload.success,
       message: payload.message,
+      availableBalance: payload.available_balance,
       copiedTrader: mapCopiedTrader(payload.copied_trader),
     };
   }
@@ -257,6 +306,7 @@ export class CopyTradingService {
     return {
       success: payload.success,
       message: payload.message,
+      availableBalance: payload.available_balance,
       copiedTrader: mapCopiedTrader(payload.copied_trader),
     };
   }
@@ -270,5 +320,17 @@ export class CopyTradingService {
     );
 
     return payload;
+  }
+
+  static async getExecutionFeed(params?: { limit?: number }): Promise<ExecutionFeedEvent[]> {
+    const query = params?.limit ? `?limit=${params.limit}` : "";
+    const payload = await authorizedFetch<BackendExecutionFeedResponse>(
+      `/api/v1/copy-trading/executions${query}`,
+      {
+        method: "GET",
+      }
+    );
+
+    return payload.data.map(mapExecutionFeedEvent);
   }
 }

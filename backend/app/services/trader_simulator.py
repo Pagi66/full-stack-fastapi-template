@@ -1,5 +1,6 @@
 ﻿import random
 import uuid
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from typing import Any, Dict, List
 
@@ -17,6 +18,18 @@ from app.models import (
     User,
     UserTraderCopy,
 )
+
+
+@dataclass
+class CopiedTradeRecord:
+    trade: Trade
+    source_trade: TraderTrade
+
+
+@dataclass
+class SimulationRun:
+    trader_trades: List[TraderTrade]
+    follower_trades: List[CopiedTradeRecord]
 
 
 class TraderSimulator:
@@ -303,10 +316,19 @@ class TraderSimulator:
         db.commit()
         return len(trader_profiles)
 
-    def simulate_trader_trade(self, db: Session, trading_day: date | None = None) -> int:
+    def simulate_trader_trade(
+        self,
+        db: Session,
+        trading_day: date | None = None,
+        trader_profile_ids: list[uuid.UUID] | None = None,
+    ) -> SimulationRun:
         trading_day = trading_day or datetime.utcnow().date()
-        trader_profiles = db.exec(select(TraderProfile).where(TraderProfile.is_public == True)).all()
+        statement = select(TraderProfile).where(TraderProfile.is_public == True)
+        if trader_profile_ids:
+            statement = statement.where(TraderProfile.id.in_(trader_profile_ids))
+        trader_profiles = db.exec(statement).all()
         created_trades: List[TraderTrade] = []
+        copied_trades: List[CopiedTradeRecord] = []
 
         for trader_profile in trader_profiles:
             self._update_daily_win_rate(db, trader_profile, trading_day)
@@ -342,11 +364,13 @@ class TraderSimulator:
 
         for trade in created_trades:
             if trade.is_copyable and (trade.profit_loss or 0) > 0:
-                self.copy_trade_to_followers(db, trade)
+                copied_trades.extend(self.copy_trade_to_followers(db, trade))
 
-        return len(created_trades)
+        return SimulationRun(trader_trades=created_trades, follower_trades=copied_trades)
 
-    def copy_trade_to_followers(self, db: Session, trader_trade: TraderTrade) -> int:
+    def copy_trade_to_followers(
+        self, db: Session, trader_trade: TraderTrade
+    ) -> List[CopiedTradeRecord]:
         copy_relationships = db.exec(
             select(UserTraderCopy).where(
                 UserTraderCopy.trader_profile_id == trader_trade.trader_profile_id,
@@ -354,7 +378,7 @@ class TraderSimulator:
             )
         ).all()
 
-        copied_trades: List[Trade] = []
+        copied_trades: List[CopiedTradeRecord] = []
         for copy_relation in copy_relationships:
             if copy_relation.copy_amount <= 0:
                 continue
@@ -395,10 +419,10 @@ class TraderSimulator:
 
             db.add(follower_trade)
             db.add(user)
-            copied_trades.append(follower_trade)
+            copied_trades.append(CopiedTradeRecord(trade=follower_trade, source_trade=trader_trade))
 
         db.commit()
-        return len(copied_trades)
+        return copied_trades
 
     def _update_account_summary(self, db: Session, user_id: uuid.UUID, profit_loss: float, is_win: bool) -> None:
         summary = db.exec(select(AccountSummary).where(AccountSummary.user_id == user_id)).first()

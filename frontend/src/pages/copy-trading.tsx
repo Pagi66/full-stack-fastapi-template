@@ -53,6 +53,39 @@ export const CopyTrading = () => {
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"success" | "error">("success");
 
+  const invalidateDashboardQueries = () => {
+  if (!user?.id) {
+    return;
+  }
+  queryClient.invalidateQueries({ queryKey: ['account-summary', user.id] });
+  queryClient.invalidateQueries({ queryKey: ['trades', user.id] });
+  queryClient.invalidateQueries({ queryKey: ['daily-performance', user.id] });
+  queryClient.invalidateQueries({ queryKey: ['transactions', user.id] });
+  queryClient.invalidateQueries({ queryKey: ['market-prices'] });
+  queryClient.invalidateQueries({ queryKey: ['execution-feed'] });
+};
+
+  const applyBalanceUpdate = (nextBalance: number) => {
+    queryClient.setQueryData(["currentUser"], (existing: unknown) => {
+      if (existing && typeof existing === 'object') {
+        const record = existing as Record<string, unknown>;
+        const allocatedRaw = record.allocated_copy_balance ?? record.allocatedCopyBalance;
+        const allocated = typeof allocatedRaw === 'number' ? allocatedRaw : Number(allocatedRaw ?? 0);
+        return {
+          ...record,
+          balance: nextBalance,
+          available_balance: nextBalance,
+          availableBalance: nextBalance,
+          total_balance: nextBalance + allocated,
+          totalBalance: nextBalance + allocated,
+        };
+      }
+      return existing;
+    });
+    queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+    invalidateDashboardQueries();
+  };
+
   const copiedTradersQuery = useQuery<CopiedTrader[]>({
     queryKey: ["copied-traders"],
     queryFn: () => CopyTradingService.getCopiedTraders(),
@@ -86,12 +119,13 @@ export const CopyTrading = () => {
     mutationFn: ({ traderId, amount }) =>
       CopyTradingService.startCopyTrading({ traderId, allocation: amount }),
     onSuccess: (data) => {
-      setAlertMessage(data.message);
+      setAlertMessage(`${data.message} Remaining balance: ${formatCurrency(data.availableBalance)}.`);
       setAlertType("success");
       setTraderCode("");
       setAllocationAmount("");
       setVerificationResult(null);
       queryClient.invalidateQueries({ queryKey: ["copied-traders"] });
+      applyBalanceUpdate(data.availableBalance);
     },
     onError: (error) => {
       setAlertMessage(error.message || "Failed to start copy trading. Please try again.");
@@ -123,7 +157,7 @@ export const CopyTrading = () => {
       return;
     }
 
-    if (user?.balance && amount > user.balance) {
+    if (typeof user?.balance === "number" && amount > user.balance) {
       setAlertMessage("Allocation amount exceeds your available balance");
       setAlertType("error");
       return;
@@ -147,9 +181,10 @@ export const CopyTrading = () => {
   >({
     mutationFn: (copyId) => CopyTradingService.pauseCopyTrading(copyId),
     onSuccess: (data) => {
-      setAlertMessage(data.message);
+      setAlertMessage(`${data.message} Updated balance: ${formatCurrency(data.availableBalance)}.`);
       setAlertType("success");
       queryClient.invalidateQueries({ queryKey: ["copied-traders"] });
+      applyBalanceUpdate(data.availableBalance);
     },
     onError: (error) => {
       setAlertMessage(error.message || "Failed to pause copy trading relationship.");
@@ -164,9 +199,10 @@ export const CopyTrading = () => {
   >({
     mutationFn: (copyId) => CopyTradingService.stopCopyTrading(copyId),
     onSuccess: (data) => {
-      setAlertMessage(data.message);
+      setAlertMessage(`${data.message} Updated balance: ${formatCurrency(data.availableBalance)}.`);
       setAlertType("success");
       queryClient.invalidateQueries({ queryKey: ["copied-traders"] });
+      applyBalanceUpdate(data.availableBalance);
     },
     onError: (error) => {
       setAlertMessage(error.message || "Failed to stop copy trading relationship.");
@@ -191,9 +227,10 @@ export const CopyTrading = () => {
   >({
     mutationFn: (copyId) => CopyTradingService.resumeCopyTrading(copyId),
     onSuccess: (data) => {
-      setAlertMessage(data.message);
+      setAlertMessage(`${data.message} Updated balance: ${formatCurrency(data.availableBalance)}.`);
       setAlertType("success");
       queryClient.invalidateQueries({ queryKey: ["copied-traders"] });
+      applyBalanceUpdate(data.availableBalance);
     },
     onError: (error) => {
       setAlertMessage(error.message || "Failed to resume copy trading relationship.");
@@ -296,7 +333,6 @@ export const CopyTrading = () => {
                   placeholder="Enter amount to allocate"
                   value={allocationAmount}
                   onChange={setAllocationAmount}
-                  min={0}
                 />
                 <p className="mt-1 text-xs text-tertiary">Minimum allocation: $100.00</p>
               </div>
