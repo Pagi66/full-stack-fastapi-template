@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session, delete, select
+from sqlmodel import Session, select
 
 from app import crud
 from app.core.config import settings
@@ -121,6 +121,7 @@ def test_copy_trading_pause_and_stop_flow(
         start_payload = start_response.json()
         copy_id = start_payload["copied_trader"]["copy_id"]
         assert start_payload["copied_trader"]["status"] == "ACTIVE"
+        assert start_payload["available_balance"] == pytest.approx(initial_balance - 500.0, rel=1e-3)
 
         db.refresh(follower_user)
         assert follower_user.balance == pytest.approx(initial_balance - 500.0, rel=1e-3)
@@ -152,6 +153,8 @@ def test_copy_trading_pause_and_stop_flow(
             headers=follower_headers,
         )
         assert pause_response.status_code == 200
+        pause_payload = pause_response.json()
+        assert pause_payload["available_balance"] == pytest.approx(initial_balance - 500.0, rel=1e-3)
         db.refresh(copy_entry)
         db.refresh(profile)
         assert copy_entry.copy_status == CopyStatus.PAUSED
@@ -173,6 +176,8 @@ def test_copy_trading_pause_and_stop_flow(
             headers=follower_headers,
         )
         assert resume_response.status_code == 200
+        resume_payload = resume_response.json()
+        assert resume_payload["available_balance"] == pytest.approx(initial_balance - 500.0, rel=1e-3)
         db.refresh(copy_entry)
         db.refresh(profile)
         assert copy_entry.copy_status == CopyStatus.ACTIVE
@@ -194,6 +199,8 @@ def test_copy_trading_pause_and_stop_flow(
             headers=follower_headers,
         )
         assert stop_response.status_code == 200
+        stop_payload = stop_response.json()
+        assert stop_payload["available_balance"] == pytest.approx(initial_balance, rel=1e-3)
         db.refresh(copy_entry)
         db.refresh(profile)
         assert copy_entry.copy_status == CopyStatus.STOPPED
@@ -217,34 +224,43 @@ def test_copy_trading_pause_and_stop_flow(
     finally:
         with Session(engine) as cleanup_session:
             if copy_id is not None:
-                cleanup_session.exec(
-                    delete(UserTraderCopy).where(
-                        UserTraderCopy.id == uuid.UUID(copy_id)
-                    )
-                )
+                try:
+                    copy_uuid = uuid.UUID(copy_id)
+                except ValueError:
+                    copy_uuid = None
+                if copy_uuid:
+                    copy_instance = cleanup_session.get(UserTraderCopy, copy_uuid)
+                    if copy_instance is not None:
+                        cleanup_session.delete(copy_instance)
 
-            cleanup_session.exec(
-                delete(UserTraderCopy).where(UserTraderCopy.user_id == follower_user.id)
-            )
+            follower_copies = cleanup_session.exec(
+                select(UserTraderCopy).where(UserTraderCopy.user_id == follower_user.id)
+            ).all()
+            for follower_copy in follower_copies:
+                cleanup_session.delete(follower_copy)
 
             if trader_profile_id is not None:
-                profile_uuid = uuid.UUID(trader_profile_id)
-                cleanup_session.exec(
-                    delete(UserTraderCopy).where(
-                        UserTraderCopy.trader_profile_id == profile_uuid
-                    )
-                )
-                cleanup_session.exec(
-                    delete(TraderProfile).where(TraderProfile.id == profile_uuid)
-                )
+                try:
+                    profile_uuid = uuid.UUID(trader_profile_id)
+                except ValueError:
+                    profile_uuid = None
+                if profile_uuid:
+                    trader_copies = cleanup_session.exec(
+                        select(UserTraderCopy).where(
+                            UserTraderCopy.trader_profile_id == profile_uuid
+                        )
+                    ).all()
+                    for trader_copy in trader_copies:
+                        cleanup_session.delete(trader_copy)
 
-            cleanup_session.exec(
-                delete(TraderProfile).where(TraderProfile.user_id == trader_user.id)
-            )
+                    profile = cleanup_session.get(TraderProfile, profile_uuid)
+                    if profile is not None:
+                        cleanup_session.delete(profile)
 
-            cleanup_session.exec(
-                delete(User).where(User.id.in_([trader_user.id, follower_user.id]))
-            )
+            for user_id in {trader_user.id, follower_user.id}:
+                user_instance = cleanup_session.get(User, user_id)
+                if user_instance is not None:
+                    cleanup_session.delete(user_instance)
 
             cleanup_session.commit()
 

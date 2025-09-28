@@ -40,8 +40,12 @@ def test_trader_simulator():
         
         # Test 3: Simulate trader trades
         logger.info("💹 Testing trader trade simulation...")
-        created_trades = simulator.simulate_trader_trade(session)
-        logger.info(f"✅ Created {created_trades} trader trades")
+        simulation_run = simulator.simulate_trader_trade(session)
+        logger.info(
+            "✅ Created %d trader trades and %d copied trades",
+            len(simulation_run.trader_trades),
+            len(simulation_run.follower_trades),
+        )
         
         # Test 4: Verify data was created correctly
         logger.info("🔍 Verifying created data...")
@@ -68,8 +72,8 @@ def test_trader_simulator():
             logger.info("🔄 Testing direct copy trading...")
             winning_trade = next((t for t in trader_trades if t.is_copyable and t.profit_loss > 0), None)
             if winning_trade:
-                copied_count = simulator.copy_trade_to_followers(session, winning_trade)
-                logger.info(f"✅ Copied trade to {copied_count} followers")
+                copied_records = simulator.copy_trade_to_followers(session, winning_trade)
+                logger.info(f"✅ Copied trade to {len(copied_records)} followers")
             else:
                 logger.info("ℹ️ No winning trades available for copy testing")
         

@@ -1,0 +1,657 @@
+KYC Verification & Account Settings Implementation
+
+1. Database Schema for KYC & User Profiles
+
+```sql
+-- Extended user profile for KYC data collection
+ALTER TABLE users ADD COLUMN IF NOT EXISTS 
+    kyc_status VARCHAR(20) DEFAULT 'pending' CHECK (kyc_status IN ('pending', 'under_review', 'approved', 'rejected'));
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS 
+    kyc_submitted_at TIMESTAMPTZ,
+    kyc_approved_at TIMESTAMPTZ,
+    kyc_rejected_reason TEXT;
+
+-- KYC document storage
+CREATE TABLE kyc_documents (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id),
+    document_type VARCHAR(50) CHECK (document_type IN ('passport', 'drivers_license', 'national_id', 'proof_of_address')),
+    front_image_url TEXT,
+    back_image_url TEXT,
+    verified BOOLEAN DEFAULT FALSE,
+    verified_by UUID REFERENCES users(id),
+    verified_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- User profile extensions for data collection
+CREATE TABLE user_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) UNIQUE,
+    legal_first_name VARCHAR(100),
+    legal_last_name VARCHAR(100),
+    date_of_birth DATE,
+    phone_number VARCHAR(20),
+    address_line_1 TEXT,
+    address_line_2 TEXT,
+    city VARCHAR(100),
+    state VARCHAR(100),
+    postal_code VARCHAR(20),
+    country VARCHAR(100),
+    tax_id_number VARCHAR(50), -- SSN/Tax ID
+    occupation VARCHAR(100),
+    source_of_funds VARCHAR(100),
+    risk_assessment_score INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+2. KYC Verification Flow Components
+
+Step 1: Personal Information Collection
+
+```typescript
+// File: frontend/src/pages/kyc/personal-info.tsx
+export const PersonalInfoStep = ({ onComplete, userData, onChange }) => {
+  const [formData, setFormData] = useState({
+    legalFirstName: userData?.legal_first_name || '',
+    legalLastName: userData?.legal_last_name || '',
+    dateOfBirth: userData?.date_of_birth || '',
+    phoneNumber: userData?.phone_number || '',
+    taxIdNumber: userData?.tax_id_number || '',
+    occupation: userData?.occupation || '',
+    sourceOfFunds: userData?.source_of_funds || 'employment_income'
+  });
+
+  return (
+    <div className="max-w-2xl mx-auto p-6">
+      <div className="text-center mb-8">
+        <ShieldTick className="w-12 h-12 text-brand-primary mx-auto mb-4" />
+        <h1 className="text-2xl font-semibold text-primary">Identity Verification</h1>
+        <p className="text-tertiary mt-2">
+          Regulatory requirements to ensure account security and compliance
+        </p>
+      </div>
+
+      <div className="bg-secondary rounded-2xl p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Legal First Name"
+            value={formData.legalFirstName}
+            onChange={(value) => setFormData({...formData, legalFirstName: value})}
+            required
+          />
+          
+          <Input
+            label="Legal Last Name"
+            value={formData.legalLastName}
+            onChange={(value) => setFormData({...formData, legalLastName: value})}
+            required
+          />
+          
+          <Input
+            label="Date of Birth"
+            type="date"
+            value={formData.dateOfBirth}
+            onChange={(value) => setFormData({...formData, dateOfBirth: value})}
+            required
+          />
+          
+          <Input
+            label="Phone Number"
+            type="tel"
+            value={formData.phoneNumber}
+            onChange={(value) => setFormData({...formData, phoneNumber: value})}
+            required
+          />
+          
+          <Input
+            label="Tax Identification Number"
+            value={formData.taxIdNumber}
+            onChange={(value) => setFormData({...formData, taxIdNumber: value})}
+            placeholder="SSN or equivalent"
+            required
+          />
+          
+          <Input
+            label="Occupation"
+            value={formData.occupation}
+            onChange={(value) => setFormData({...formData, occupation: value})}
+            required
+          />
+          
+          <Select
+            label="Source of Funds"
+            value={formData.sourceOfFunds}
+            onChange={(value) => setFormData({...formData, sourceOfFunds: value})}
+            options={[
+              { value: 'employment_income', label: 'Employment Income' },
+              { value: 'business_income', label: 'Business Income' },
+              { value: 'investments', label: 'Investment Returns' },
+              { value: 'savings', label: 'Personal Savings' },
+              { value: 'inheritance', label: 'Inheritance' },
+              { value: 'other', label: 'Other' }
+            ]}
+            required
+          />
+        </div>
+
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+          <p className="text-sm text-blue-800">
+            🔒 <strong>Security Notice:</strong> Your information is encrypted and stored securely. 
+            We comply with global KYC/AML regulations to prevent financial crime.
+          </p>
+        </div>
+
+        <Button className="w-full mt-6" onClick={() => onComplete(formData)}>
+          Continue to Address Verification
+        </Button>
+      </div>
+    </div>
+  );
+};
+```
+
+Step 2: Address Verification
+
+```typescript
+// File: frontend/src/pages/kyc/address-verification.tsx
+export const AddressVerificationStep = ({ onComplete, userData, onChange }) => {
+  const [formData, setFormData] = useState({
+    addressLine1: userData?.address_line_1 || '',
+    addressLine2: userData?.address_line_2 || '',
+    city: userData?.city || '',
+    state: userData?.state || '',
+    postalCode: userData?.postal_code || '',
+    country: userData?.country || 'US'
+  });
+
+  return (
+    <div className="max-w-2xl mx-auto p-6">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-semibold text-primary">Address Verification</h2>
+        <p className="text-tertiary mt-2">
+          Required for regulatory compliance and account security
+        </p>
+      </div>
+
+      <div className="bg-secondary rounded-2xl p-6">
+        <div className="grid grid-cols-1 gap-4">
+          <Input
+            label="Street Address"
+            value={formData.addressLine1}
+            onChange={(value) => setFormData({...formData, addressLine1: value})}
+            placeholder="123 Main Street"
+            required
+          />
+          
+          <Input
+            label="Apartment, Suite, Unit (Optional)"
+            value={formData.addressLine2}
+            onChange={(value) => setFormData({...formData, addressLine2: value})}
+          />
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Input
+              label="City"
+              value={formData.city}
+              onChange={(value) => setFormData({...formData, city: value})}
+              required
+            />
+            
+            <Input
+              label="State/Province"
+              value={formData.state}
+              onChange={(value) => setFormData({...formData, state: value})}
+              required
+            />
+            
+            <Input
+              label="Postal Code"
+              value={formData.postalCode}
+              onChange={(value) => setFormData({...formData, postalCode: value})}
+              required
+            />
+            
+            <Select
+              label="Country"
+              value={formData.country}
+              onChange={(value) => setFormData({...formData, country: value})}
+              options={[
+                { value: 'US', label: 'United States' },
+                { value: 'UK', label: 'United Kingdom' },
+                { value: 'CA', label: 'Canada' },
+                { value: 'AU', label: 'Australia' },
+                // ... more countries
+              ]}
+              required
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 p-4 bg-yellow-50 rounded-lg">
+          <p className="text-sm text-yellow-800">
+            📮 <strong>Proof of Address:</strong> You may be asked to provide a utility bill or bank statement 
+            matching this address for verification.
+          </p>
+        </div>
+
+        <Button className="w-full mt-6" onClick={() => onComplete(formData)}>
+          Continue to Document Upload
+        </Button>
+      </div>
+    </div>
+  );
+};
+```
+
+Step 3: Document Upload
+
+```typescript
+// File: frontend/src/pages/kyc/document-upload.tsx
+export const DocumentUploadStep = ({ onComplete, userData }) => {
+  const [documents, setDocuments] = useState({
+    idFront: null,
+    idBack: null,
+    proofOfAddress: null
+  });
+
+  const handleFileUpload = (documentType, file) => {
+    setDocuments(prev => ({
+      ...prev,
+      [documentType]: file
+    }));
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto p-6">
+      <div className="text-center mb-8">
+        <h2 className="text-2xl font-semibold text-primary">Document Verification</h2>
+        <p className="text-tertiary mt-2">
+          Upload required documents for identity verification
+        </p>
+      </div>
+
+      <div className="bg-secondary rounded-2xl p-6 space-y-6">
+        {/* Government ID */}
+        <div>
+          <h3 className="font-semibold text-primary mb-3">Government Issued ID</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FileUploadBox
+              title="Front of ID"
+              description="Passport, Driver's License, or National ID"
+              acceptedTypes="image/*,application/pdf"
+              onFileSelect={(file) => handleFileUpload('idFront', file)}
+            />
+            <FileUploadBox
+              title="Back of ID"
+              description="Required if two-sided"
+              acceptedTypes="image/*,application/pdf"
+              onFileSelect={(file) => handleFileUpload('idBack', file)}
+            />
+          </div>
+        </div>
+
+        {/* Proof of Address */}
+        <div>
+          <h3 className="font-semibold text-primary mb-3">Proof of Address</h3>
+          <FileUploadBox
+            title="Utility Bill or Bank Statement"
+            description="Dated within last 3 months, matching your address"
+            acceptedTypes="image/*,application/pdf"
+            onFileSelect={(file) => handleFileUpload('proofOfAddress', file)}
+          />
+        </div>
+
+        <div className="p-4 bg-green-50 rounded-lg">
+          <p className="text-sm text-green-800">
+            ✅ <strong>Security:</strong> All documents are encrypted and processed securely. 
+            Typical verification time: 24-48 hours.
+          </p>
+        </div>
+
+        <Button 
+          className="w-full" 
+          onClick={() => onComplete(documents)}
+          disabled={!documents.idFront || !documents.proofOfAddress}
+        >
+          Submit for Verification
+        </Button>
+      </div>
+    </div>
+  );
+};
+```
+
+3. Account Settings with Security Best Practices
+
+```typescript
+// File: frontend/src/pages/settings/account-settings.tsx
+export const AccountSettings = () => {
+  const { user, updateProfile } = useAuth();
+  const [activeTab, setActiveTab] = useState('profile');
+
+  const tabs = [
+    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'security', label: 'Security', icon: ShieldTick },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'privacy', label: 'Privacy', icon: Lock }
+  ];
+
+  return (
+    <div className="min-h-screen bg-primary p-6">
+      <div className="max-w-4xl mx-auto">
+        <header className="mb-8">
+          <h1 className="text-2xl font-semibold text-primary">Account Settings</h1>
+          <p className="text-tertiary">Manage your account preferences and security</p>
+        </header>
+
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Sidebar Navigation */}
+          <div className="lg:w-64">
+            <nav className="bg-secondary rounded-2xl p-4">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-3 w-full p-3 rounded-lg text-left transition-colors ${
+                    activeTab === tab.id
+                      ? 'bg-brand-solid/10 text-brand-solid border border-brand-solid/20'
+                      : 'text-tertiary hover:bg-primary'
+                  }`}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+
+            {/* KYC Status */}
+            <div className="bg-secondary rounded-2xl p-4 mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-primary">KYC Status</span>
+                <Badge color={
+                  user?.kyc_status === 'approved' ? 'success' :
+                  user?.kyc_status === 'pending' ? 'warning' : 'error'
+                }>
+                  {user?.kyc_status}
+                </Badge>
+              </div>
+              {user?.kyc_status !== 'approved' && (
+                <Button size="sm" className="w-full mt-2" href="/kyc">
+                  Complete Verification
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1">
+            {activeTab === 'profile' && <ProfileSettings user={user} />}
+            {activeTab === 'security' && <SecuritySettings user={user} />}
+            {activeTab === 'notifications' && <NotificationSettings />}
+            {activeTab === 'privacy' && <PrivacySettings />}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+4. Security Settings Component
+
+```typescript
+// File: frontend/src/pages/settings/security-settings.tsx
+export const SecuritySettings = ({ user }) => {
+  const [enable2FA, setEnable2FA] = useState(user?.two_factor_enabled || false);
+
+  return (
+    <div className="bg-secondary rounded-2xl p-6">
+      <h2 className="text-lg font-semibold text-primary mb-6">Security Settings</h2>
+      
+      <div className="space-y-6">
+        {/* Password Change */}
+        <div className="flex justify-between items-center p-4 border border-secondary rounded-lg">
+          <div>
+            <h3 className="font-medium text-primary">Password</h3>
+            <p className="text-sm text-tertiary">Last changed 3 months ago</p>
+          </div>
+          <Button color="secondary" size="sm">
+            Change Password
+          </Button>
+        </div>
+
+        {/* Two-Factor Authentication */}
+        <div className="flex justify-between items-center p-4 border border-secondary rounded-lg">
+          <div>
+            <h3 className="font-medium text-primary">Two-Factor Authentication</h3>
+            <p className="text-sm text-tertiary">
+              {enable2FA ? 'Enabled' : 'Add an extra layer of security'}
+            </p>
+          </div>
+          <Switch
+            checked={enable2FA}
+            onChange={setEnable2FA}
+          />
+        </div>
+
+        {/* Session Management */}
+        <div className="flex justify-between items-center p-4 border border-secondary rounded-lg">
+          <div>
+            <h3 className="font-medium text-primary">Active Sessions</h3>
+            <p className="text-sm text-tertiary">Manage your logged-in devices</p>
+          </div>
+          <Button color="secondary" size="sm">
+            View Sessions
+          </Button>
+        </div>
+
+        {/* API Keys */}
+        <div className="flex justify-between items-center p-4 border border-secondary rounded-lg">
+          <div>
+            <h3 className="font-medium text-primary">API Access</h3>
+            <p className="text-sm text-tertiary">Manage your integration keys</p>
+          </div>
+          <Button color="secondary" size="sm">
+            Manage API Keys
+          </Button>
+        </div>
+      </div>
+
+      {/* Security Notice */}
+      <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+        <p className="text-sm text-blue-800">
+          🔐 <strong>Security Best Practices:</strong> Enable 2FA, use a strong unique password, 
+          and regularly review your active sessions.
+        </p>
+      </div>
+    </div>
+  );
+};
+```
+
+5. Backend KYC Verification API
+
+```python
+# File: backend/app/api/routes/kyc.py
+@router.post("/submit-kyc")
+async def submit_kyc_information(
+    kyc_data: KYCSchema,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Submit KYC information for verification"""
+    
+    # Validate age requirement (18+)
+    age = calculate_age(kyc_data.date_of_birth)
+    if age < 18:
+        raise HTTPException(status_code=400, detail="Must be 18 years or older")
+    
+    # Store KYC data
+    user_profile = db.exec(
+        select(UserProfile).where(UserProfile.user_id == current_user.id)
+    ).first()
+    
+    if not user_profile:
+        user_profile = UserProfile(user_id=current_user.id)
+    
+    # Update profile with KYC data
+    for field, value in kyc_data.dict().items():
+        setattr(user_profile, field, value)
+    
+    # Update user KYC status
+    current_user.kyc_status = "under_review"
+    current_user.kyc_submitted_at = datetime.utcnow()
+    
+    db.add(user_profile)
+    db.add(current_user)
+    db.commit()
+    
+    # Trigger admin notification
+    await notify_admins_kyc_submission(current_user.id)
+    
+    return {"message": "KYC information submitted for review"}
+
+@router.post("/upload-document")
+async def upload_kyc_document(
+    document_type: str,
+    file: UploadFile,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Upload KYC document for verification"""
+    
+    # Validate file type and size
+    if not allowed_file_type(file.filename):
+        raise HTTPException(status_code=400, detail="Invalid file type")
+    
+    if file.size > 10 * 1024 * 1024:  # 10MB limit
+        raise HTTPException(status_code=400, detail="File too large")
+    
+    # Upload to secure storage
+    file_url = await upload_to_secure_storage(file)
+    
+    # Store document record
+    document = KYCDocument(
+        user_id=current_user.id,
+        document_type=document_type,
+        front_image_url=file_url,
+        created_at=datetime.utcnow()
+    )
+    
+    db.add(document)
+    db.commit()
+    
+    return {"message": "Document uploaded successfully", "document_id": document.id}
+```
+
+6. Admin KYC Review Interface
+
+```typescript
+// File: frontend/src/pages/admin/kyc-review.tsx
+export const KYCReview = () => {
+  const { data: pendingReviews } = useQuery({
+    queryKey: ['pending-kyc'],
+    queryFn: () => AdminService.getPendingKYC()
+  });
+
+  const approveKYC = async (userId: string) => {
+    await AdminService.approveKYC(userId);
+    // Invalidate queries to refresh list
+  };
+
+  const rejectKYC = async (userId: string, reason: string) => {
+    await AdminService.rejectKYC(userId, reason);
+  };
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-semibold">KYC Verification Queue</h1>
+        <Badge color="warning">{pendingReviews?.length} Pending</Badge>
+      </div>
+
+      <div className="grid gap-4">
+        {pendingReviews?.map((application) => (
+          <div key={application.id} className="bg-secondary rounded-2xl p-6">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="font-semibold text-primary">
+                  {application.legal_first_name} {application.legal_last_name}
+                </h3>
+                <p className="text-tertiary">
+                  {application.email} • Submitted {formatDate(application.kyc_submitted_at)}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" color="success" onClick={() => approveKYC(application.user_id)}>
+                  Approve
+                </Button>
+                <Button size="sm" color="error" onClick={() => rejectKYC(application.user_id, 'Manual review required')}>
+                  Reject
+                </Button>
+                <Button size="sm" color="secondary">
+                  View Details
+                </Button>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-tertiary">DOB:</span>
+                <p className="font-medium">{application.date_of_birth}</p>
+              </div>
+              <div>
+                <span className="text-tertiary">Phone:</span>
+                <p className="font-medium">{application.phone_number}</p>
+              </div>
+              <div>
+                <span className="text-tertiary">Country:</span>
+                <p className="font-medium">{application.country}</p>
+              </div>
+              <div>
+                <span className="text-tertiary">Risk Score:</span>
+                <p className="font-medium">{application.risk_assessment_score}/100</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+```
+
+7. Implementation Commands
+
+```bash
+# 1. Add KYC database tables
+docker compose exec backend alembic revision --autogenerate -m "add_kyc_verification_system"
+docker compose exec backend alembic upgrade head
+
+# 2. Test KYC submission flow
+docker compose exec backend python -c "
+from app.core.database import engine
+from app.models import User, UserProfile
+from sqlmodel import Session
+
+with Session(engine) as session:
+    user = session.exec(select(User)).first()
+    if user:
+        profile = UserProfile(
+            user_id=user.id,
+            legal_first_name='John',
+            legal_last_name='Doe',
+            date_of_birth='1990-01-01',
+            phone_number='+1234567890',
+            tax_id_number='123-45-6789'
+        )
+        session.add(profile)
+        user.kyc_status = 'under_review'
+        session.commit()
+        print('KYC test data created')
+"
+```

@@ -1,8 +1,10 @@
 import "@testing-library/jest-dom/vitest";
 
 // Silence React Router navigation attempts during tests.
-vi.mock("@tanstack/react-router", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@tanstack/react-router")>();
+// Mock for React Router during tests
+// @ts-ignore
+vi.mock("@tanstack/react-router", async (importOriginal: any) => {
+  const actual = await importOriginal();
   return {
     ...actual,
     useRouter: () => ({ navigate: () => Promise.resolve() }),

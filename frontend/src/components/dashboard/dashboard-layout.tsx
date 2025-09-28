@@ -25,7 +25,8 @@ const navigationItems = [
   { icon: Zap, label: "Live Executions", to: "/dashboard/executions" },
   { icon: Activity, label: "Trade History", to: "/dashboard/history" },
   { icon: ShieldTick, label: "Risk Management", to: "/dashboard/risk" },
-  { icon: Settings01, label: "Account Settings", to: "/dashboard/settings" },
+  { icon: Settings01, label: "Account Settings", to: "/settings" },
+  { icon: ShieldTick, label: "KYC Verification", to: "/kyc" },
 ];
 
 interface DashboardLayoutProps {
@@ -67,7 +68,7 @@ export const DashboardLayout = ({ children, isLoading = false }: DashboardLayout
               <p className="text-tertiary">Live institutional trading dashboard</p>
             </div>
             <div className="flex items-center gap-3">
-              <Badge size="sm" color={user?.kyc_status === "approved" ? "success" : "warning"}>
+              <Badge size="sm" color={user?.kyc_status === "APPROVED" ? "success" : "warning"}>
                 <ShieldTick className="mr-1 h-3 w-3" />
                 KYC: {user?.kyc_status ?? "pending"}
               </Badge>

@@ -3,11 +3,22 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, delete
+from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.db import engine, init_db
 from app.main import app
-from app.models import Item, TraderProfile, TraderTrade, Trade, User, UserTraderCopy
+from app.models import (
+    Item,
+    KycDocument,
+    TraderProfile,
+    TraderTrade,
+    Trade,
+    Transaction,
+    User,
+    UserProfile,
+    UserTraderCopy,
+)
 from app.tests.utils.user import authentication_token_from_email
 from app.tests.utils.utils import get_superuser_token_headers
 
@@ -17,12 +28,12 @@ def db() -> Generator[Session, None, None]:
     with Session(engine) as session:
         init_db(session)
         yield session
-        session.execute(delete(TraderTrade))
-        session.execute(delete(Trade))
-        session.execute(delete(UserTraderCopy))
-        session.execute(delete(TraderProfile))
-        session.execute(delete(Item))
-        session.execute(delete(User))
+        session.execute(
+            text(
+                'TRUNCATE TABLE tradertrade, trade, usertradercopy, kycdocument, '
+                'userprofile, traderprofile, item, transaction, "user" RESTART IDENTITY CASCADE'
+            )
+        )
         session.commit()
 
 

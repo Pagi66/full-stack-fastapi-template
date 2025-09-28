@@ -18,6 +18,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardCopyTradingRouteImport } from './routes/dashboard/copy-trading'
 import { Route as AdminTraderManagerRouteImport } from './routes/admin/trader-manager'
 import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as KycRouteImport } from './routes/kyc'
+import { Route as AdminKycReviewRouteImport } from './routes/admin/kyc-review'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -64,6 +67,21 @@ const AdminDashboardRoute = AdminDashboardRouteImport.update({
   path: '/admin/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KycRoute = KycRouteImport.update({
+  id: '/kyc',
+  path: '/kyc',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminKycReviewRoute = AdminKycReviewRouteImport.update({
+  id: '/admin/kyc-review',
+  path: '/admin/kyc-review',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -72,8 +90,11 @@ export interface FileRoutesByFullPath {
   '/home': typeof HomeRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/settings': typeof SettingsRoute
+  '/kyc': typeof KycRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/trader-manager': typeof AdminTraderManagerRoute
+  '/admin/kyc-review': typeof AdminKycReviewRoute
   '/dashboard/copy-trading': typeof DashboardCopyTradingRoute
 }
 export interface FileRoutesByTo {
@@ -83,8 +104,11 @@ export interface FileRoutesByTo {
   '/home': typeof HomeRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/settings': typeof SettingsRoute
+  '/kyc': typeof KycRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/trader-manager': typeof AdminTraderManagerRoute
+  '/admin/kyc-review': typeof AdminKycReviewRoute
   '/dashboard/copy-trading': typeof DashboardCopyTradingRoute
 }
 export interface FileRoutesById {
@@ -95,8 +119,11 @@ export interface FileRoutesById {
   '/home': typeof HomeRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/settings': typeof SettingsRoute
+  '/kyc': typeof KycRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/trader-manager': typeof AdminTraderManagerRoute
+  '/admin/kyc-review': typeof AdminKycReviewRoute
   '/dashboard/copy-trading': typeof DashboardCopyTradingRoute
 }
 export interface FileRouteTypes {
@@ -108,8 +135,11 @@ export interface FileRouteTypes {
     | '/home'
     | '/login'
     | '/signup'
+    | '/settings'
+    | '/kyc'
     | '/admin/dashboard'
     | '/admin/trader-manager'
+    | '/admin/kyc-review'
     | '/dashboard/copy-trading'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -119,8 +149,11 @@ export interface FileRouteTypes {
     | '/home'
     | '/login'
     | '/signup'
+    | '/settings'
+    | '/kyc'
     | '/admin/dashboard'
     | '/admin/trader-manager'
+    | '/admin/kyc-review'
     | '/dashboard/copy-trading'
   id:
     | '__root__'
@@ -130,8 +163,11 @@ export interface FileRouteTypes {
     | '/home'
     | '/login'
     | '/signup'
+    | '/settings'
+    | '/kyc'
     | '/admin/dashboard'
     | '/admin/trader-manager'
+    | '/admin/kyc-review'
     | '/dashboard/copy-trading'
   fileRoutesById: FileRoutesById
 }
@@ -142,8 +178,11 @@ export interface RootRouteChildren {
   HomeRoute: typeof HomeRoute
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
+  SettingsRoute: typeof SettingsRoute
+  KycRoute: typeof KycRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminTraderManagerRoute: typeof AdminTraderManagerRoute
+  AdminKycReviewRoute: typeof AdminKycReviewRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -190,6 +229,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kyc': {
+      id: '/kyc'
+      path: '/kyc'
+      fullPath: '/kyc'
+      preLoaderRoute: typeof KycRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/copy-trading': {
       id: '/dashboard/copy-trading'
       path: '/copy-trading'
@@ -209,6 +262,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/dashboard'
       fullPath: '/admin/dashboard'
       preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/kyc-review': {
+      id: '/admin/kyc-review'
+      path: '/admin/kyc-review'
+      fullPath: '/admin/kyc-review'
+      preLoaderRoute: typeof AdminKycReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -233,8 +293,11 @@ const rootRouteChildren: RootRouteChildren = {
   HomeRoute: HomeRoute,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
+  SettingsRoute: SettingsRoute,
+  KycRoute: KycRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminTraderManagerRoute: AdminTraderManagerRoute,
+  AdminKycReviewRoute: AdminKycReviewRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
