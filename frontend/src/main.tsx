@@ -6,6 +6,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { router } from "@/router";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { AuthProvider } from "@/providers/auth-provider";
+// import { ExecutionFeedProvider } from "@/providers/execution-feed-provider";
 import { AuthErrorBoundary } from "@/components/auth/error-boundary";
 import "@/api/client-config";
 import "@/styles/globals.css";
@@ -25,10 +26,12 @@ createRoot(document.getElementById("root")!).render(
         <QueryClientProvider client={queryClient}>
             <AuthErrorBoundary>
                 <AuthProvider>
-                    <ThemeProvider>
-                        <RouterProvider router={router} />
-                        <ReactQueryDevtools initialIsOpen={false} />
-                    </ThemeProvider>
+                    {/* <ExecutionFeedProvider> */}
+                        <ThemeProvider>
+                            <RouterProvider router={router} />
+                            <ReactQueryDevtools initialIsOpen={false} />
+                        </ThemeProvider>
+                    {/* </ExecutionFeedProvider> */}
                 </AuthProvider>
             </AuthErrorBoundary>
         </QueryClientProvider>

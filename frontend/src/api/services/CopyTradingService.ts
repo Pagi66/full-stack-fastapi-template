@@ -60,6 +60,12 @@ export interface ExecutionFeedEvent {
   createdAt: string;
 }
 
+export interface ExecutionFeedResult {
+  events: ExecutionFeedEvent[];
+  latestCursor: string | null;
+  count: number;
+}
+
 type BackendTraderSummary = {
   id: string;
   trader_code: string;
@@ -121,6 +127,7 @@ type BackendExecutionFeedEvent = {
 type BackendExecutionFeedResponse = {
   data: BackendExecutionFeedEvent[];
   count: number;
+  latest_cursor?: string | null;
 };
 
 const apiBase = () => (OpenAPI.BASE ?? "").replace(/\/$/, "");
@@ -322,15 +329,26 @@ export class CopyTradingService {
     return payload;
   }
 
-  static async getExecutionFeed(params?: { limit?: number }): Promise<ExecutionFeedEvent[]> {
-    const query = params?.limit ? `?limit=${params.limit}` : "";
+  static async getExecutionFeed(params?: { limit?: number; since?: string }): Promise<ExecutionFeedResult> {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) {
+      searchParams.set("limit", String(params.limit));
+    }
+    if (params?.since) {
+      searchParams.set("since", params.since);
+    }
+    const query = searchParams.toString();
     const payload = await authorizedFetch<BackendExecutionFeedResponse>(
-      `/api/v1/copy-trading/executions${query}`,
+      `/api/v1/copy-trading/executions${query ? `?${query}` : ""}`,
       {
         method: "GET",
       }
     );
 
-    return payload.data.map(mapExecutionFeedEvent);
+    return {
+      events: payload.data.map(mapExecutionFeedEvent),
+      latestCursor: payload.latest_cursor ?? null,
+      count: payload.count,
+    };
   }
 }

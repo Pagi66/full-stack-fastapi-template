@@ -2,20 +2,27 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
-from datetime import datetime
+from collections import deque
+from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
-from pydantic import computed_field
-from sqlmodel import SQLModel, func, select
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, status
+from jwt import InvalidTokenError
+from pydantic import ValidationError, computed_field
+from sqlmodel import SQLModel, Session, func, select
 
 from app.api.deps import CurrentUser, SessionDep
+from app.core import security
+from app.core.db import engine
+from app.core.time import utc_now
 from app.models import (
     CopyStatus,
     ExecutionEvent,
     ExecutionEventType,
     RiskTolerance,
+    TokenPayload,
     TraderProfile,
     Transaction,
     TransactionStatus,
@@ -23,7 +30,6 @@ from app.models import (
     User,
     UserTraderCopy,
 )
-
 
 router = APIRouter(prefix="/copy-trading", tags=["copy-trading"])
 
@@ -129,7 +135,7 @@ def _record_balance_delta(
         transaction_type=TransactionType.ADJUSTMENT,
         status=TransactionStatus.COMPLETED,
         description=description,
-        executed_at=datetime.utcnow(),
+        executed_at=utc_now(),
     )
     session.add(transaction)
 
@@ -226,6 +232,78 @@ class ExecutionFeedEvent(SQLModel):
 class ExecutionFeedResponse(SQLModel):
     data: list[ExecutionFeedEvent]
     count: int
+    latest_cursor: datetime | None = None
+
+    @computed_field(return_type=str | None, alias="latestCursor")
+    def latest_cursor_iso(self) -> str | None:
+        return self.latest_cursor.isoformat() if self.latest_cursor else None
+
+
+
+DEFAULT_EXECUTION_POLL_SECONDS = 2.0
+MAX_BUFFERED_EXECUTION_IDS = 400
+
+
+def _normalize_cursor(cursor: datetime | None) -> datetime | None:
+    if cursor is None:
+        return None
+    if cursor.tzinfo is None:
+        return cursor.replace(tzinfo=timezone.utc)
+    return cursor.astimezone(timezone.utc)
+
+
+def _resolve_poll_interval(raw_value: str | None) -> float:
+    try:
+        value = float(raw_value) if raw_value is not None else None
+    except (TypeError, ValueError):
+        value = None
+    if value is None:
+        return DEFAULT_EXECUTION_POLL_SECONDS
+    return max(0.5, min(value, 10.0))
+
+
+def _serialize_execution_event(
+    session: Session,
+    event: ExecutionEvent,
+    profile_cache: dict[uuid.UUID, tuple[str | None, str | None]],
+) -> ExecutionFeedEvent:
+    trader_display_name: str | None = None
+    trader_code: str | None = None
+
+    if event.trader_profile_id:
+        cached = profile_cache.get(event.trader_profile_id)
+        if cached is None:
+            trader_profile = session.get(TraderProfile, event.trader_profile_id)
+            if trader_profile is not None:
+                cached = (trader_profile.display_name, trader_profile.trader_code)
+            else:
+                cached = (None, None)
+            profile_cache[event.trader_profile_id] = cached
+        trader_display_name, trader_code = cached
+
+    payload = event.payload or {}
+    if trader_display_name is None:
+        name_value = payload.get("trader_display_name")
+        if isinstance(name_value, str):
+            trader_display_name = name_value
+    if trader_code is None:
+        code_value = payload.get("trader_code")
+        if isinstance(code_value, str):
+            trader_code = code_value
+
+    symbol_value = payload.get("symbol")
+    symbol = symbol_value if isinstance(symbol_value, str) else None
+
+    return ExecutionFeedEvent(
+        id=event.id,
+        event_type=event.event_type,
+        description=event.description,
+        amount=float(event.amount or 0.0),
+        symbol=symbol,
+        trader_display_name=trader_display_name,
+        trader_code=trader_code,
+        created_at=event.created_at,
+    )
 
 
 class CopyTradingUpdateResponse(SQLModel):
@@ -595,8 +673,11 @@ def read_execution_feed(
     session: SessionDep,
     current_user: CurrentUser,
     limit: int = 25,
-) -> Any:
+    since: datetime | None = None,
+) -> ExecutionFeedResponse:
     limit = max(1, min(limit, 100))
+    normalized_since = _normalize_cursor(since)
+
     statement = (
         select(ExecutionEvent)
         .where(ExecutionEvent.user_id == current_user.id)
@@ -604,40 +685,103 @@ def read_execution_feed(
         .limit(limit)
     )
 
+    if normalized_since is not None:
+        statement = statement.where(ExecutionEvent.created_at > normalized_since)
+
     events = session.exec(statement).all()
-    feed_items: list[ExecutionFeedEvent] = []
+    profile_cache: dict[uuid.UUID, tuple[str | None, str | None]] = {}
+    feed_items = [
+        _serialize_execution_event(session, event, profile_cache) for event in events
+    ]
+    latest_cursor = max((item.created_at for item in feed_items), default=None)
 
-    for event in events:
-        trader_display_name: str | None = None
-        trader_code: str | None = None
-        if event.trader_profile_id:
-            trader_profile = session.get(TraderProfile, event.trader_profile_id)
-            if trader_profile is not None:
-                trader_display_name = trader_profile.display_name
-                trader_code = trader_profile.trader_code
+    return ExecutionFeedResponse(
+        data=feed_items, count=len(feed_items), latest_cursor=latest_cursor
+    )
 
-        payload = event.payload or {}
-        if trader_display_name is None and isinstance(payload.get("trader_display_name"), str):
-            trader_display_name = payload["trader_display_name"]
-        if trader_code is None and isinstance(payload.get("trader_code"), str):
-            trader_code = payload["trader_code"]
 
-        symbol = payload.get("symbol") if isinstance(payload.get("symbol"), str) else None
-
-        feed_items.append(
-            ExecutionFeedEvent(
-                id=event.id,
-                event_type=event.event_type,
-                description=event.description,
-                amount=float(event.amount or 0.0),
-                symbol=symbol,
-                trader_display_name=trader_display_name,
-                trader_code=trader_code,
-                created_at=event.created_at,
-            )
+@router.websocket("/executions/live")
+async def execution_feed_live(websocket: WebSocket) -> None:
+    params = websocket.query_params
+    token = params.get("token")
+    if not token:
+        await websocket.close(
+            code=status.WS_1008_POLICY_VIOLATION,
+            reason="Missing authentication token",
         )
+        return
 
-    return ExecutionFeedResponse(data=feed_items, count=len(feed_items))
+    try:
+        claims = security.decode_token(token)
+        token_payload = TokenPayload(**claims)
+    except (InvalidTokenError, ValidationError):
+        await websocket.close(
+            code=status.WS_1008_POLICY_VIOLATION,
+            reason="Invalid credentials",
+        )
+        return
+
+    poll_interval = _resolve_poll_interval(params.get("interval"))
+
+    with Session(engine) as session:
+        user = session.get(User, token_payload.sub)
+        if user is None or not user.is_active:
+            await websocket.close(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="User not found or inactive",
+            )
+            return
+
+        await websocket.accept()
+
+        sent_ids: deque[str] = deque(maxlen=MAX_BUFFERED_EXECUTION_IDS)
+        latest_cursor: datetime | None = None
+
+        try:
+            while True:
+                session.expire_all()
+                profile_cache: dict[uuid.UUID, tuple[str | None, str | None]] = {}
+
+                statement = (
+                    select(ExecutionEvent)
+                    .where(ExecutionEvent.user_id == user.id)
+                    .order_by(ExecutionEvent.created_at.desc())
+                    .limit(50)
+                )
+
+                if latest_cursor is not None:
+                    statement = statement.where(ExecutionEvent.created_at >= latest_cursor)
+
+                events = session.exec(statement).all()
+
+                new_events: list[ExecutionFeedEvent] = []
+                for event in reversed(events):
+                    event_id = str(event.id)
+                    if event_id in sent_ids:
+                        continue
+
+                    feed_event = _serialize_execution_event(session, event, profile_cache)
+                    new_events.append(feed_event)
+                    sent_ids.append(event_id)
+                    if latest_cursor is None or feed_event.created_at > latest_cursor:
+                        latest_cursor = feed_event.created_at
+
+                if new_events:
+                    await websocket.send_json(
+                        {
+                            "type": "execution_events",
+                            "events": [item.model_dump(mode="json") for item in new_events],
+                            "latest_cursor": latest_cursor.isoformat() if latest_cursor else None,
+                        }
+                    )
+
+                session.rollback()
+                await asyncio.sleep(poll_interval)
+        except (WebSocketDisconnect, asyncio.CancelledError):
+            return
+        except Exception:
+            await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
+            raise
 
 
 @router.get("/summary", response_model=CopyTradingAggregateResponse)
@@ -676,7 +820,10 @@ __all__ = [
     "CopiedTradersResponse",
     "CopiedTraderSummary",
     "CopyTradingUpdateResponse",
+    "read_execution_feed",
+    "execution_feed_live",
     "ExecutionFeedEvent",
     "ExecutionFeedResponse",
     "CopyTradingAggregateResponse",
 ]
+

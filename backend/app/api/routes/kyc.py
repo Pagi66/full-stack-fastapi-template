@@ -20,6 +20,7 @@ from app.models import (
     UserProfile,
     UserProfilePublic,
 )
+from app.core.time import utc_now
 
 
 logger = logging.getLogger(__name__)
@@ -171,11 +172,11 @@ async def submit_kyc_information(
     profile_data = payload.model_dump()
     profile.sqlmodel_update(profile_data)
     profile.risk_assessment_score = _determine_risk_score(payload)
-    profile.updated_at = datetime.utcnow()
+    profile.updated_at = utc_now()
 
     session.add(profile)
 
-    now = datetime.utcnow()
+    now = utc_now()
     current_user.kyc_status = KycStatus.UNDER_REVIEW
     current_user.kyc_submitted_at = now
     current_user.kyc_approved_at = None
@@ -343,7 +344,7 @@ def approve_application(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    now = datetime.utcnow()
+    now = utc_now()
     user.kyc_status = KycStatus.APPROVED
     user.kyc_approved_at = now
     user.kyc_verified_at = now

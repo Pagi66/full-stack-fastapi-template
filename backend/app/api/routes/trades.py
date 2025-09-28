@@ -7,6 +7,7 @@ from sqlmodel import func, select
 
 from app import crud
 from app.api.deps import CurrentUser, SessionDep
+from app.core.time import utc_now
 from app.models import (
     Trade,
     TradeCreate,
@@ -69,7 +70,7 @@ def update_trade(
         raise HTTPException(status_code=403, detail="Not enough permissions")
     payload = trade_in.model_dump(exclude_unset=True)
     if payload.get("status") == TradeStatus.CLOSED and payload.get("closed_at") is None:
-        payload["closed_at"] = datetime.utcnow()
+        payload["closed_at"] = utc_now()
     trade_update = TradeUpdate.model_validate(payload)
     trade = crud.update_trade(session=session, db_trade=trade, trade_in=trade_update)
     return trade

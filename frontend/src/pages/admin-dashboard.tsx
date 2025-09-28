@@ -325,20 +325,21 @@ export const Dashboard = () => {
             </label>
             <label className="flex flex-col gap-2 text-sm text-fg-tertiary">
               Amount
-              <Input
+              <input
                 type="number"
                 value={manualProfitAmount}
                 onChange={(event) => setManualProfitAmount(event.target.value)}
                 placeholder="e.g. 125.00"
                 step="0.01"
                 required
+                className="rounded-md border border-border-secondary bg-bg-primary px-3 py-2 text-sm text-fg-primary"
               />
             </label>
             <label className="flex flex-col gap-2 text-sm text-fg-tertiary md:col-span-2">
               Description
               <Input
                 value={manualProfitDescription}
-                onChange={(event) => setManualProfitDescription(event.target.value)}
+                onChange={setManualProfitDescription}
                 placeholder="Reason for adjustment"
               />
             </label>

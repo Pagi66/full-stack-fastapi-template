@@ -9,6 +9,7 @@ from app import crud
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.core.config import settings
 from app.core.security import get_password_hash, verify_password
+from app.core.time import utc_now
 from app.models import (
     AccountSummary,
     AccountSummaryBase,
@@ -238,7 +239,7 @@ def update_kyc_status(
     user = session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    now = datetime.utcnow()
+    now = utc_now()
     user.kyc_status = decision.status
     user.kyc_notes = decision.notes
 

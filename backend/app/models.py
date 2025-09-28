@@ -9,6 +9,7 @@ from sqlalchemy import Enum as SAEnum
 from sqlmodel import Field, Relationship, SQLModel
 
 
+from app.core.time import utc_now
 class UserRole(str, Enum):
     ADMIN = "ADMIN"
     USER = "USER"
@@ -225,10 +226,10 @@ class UserProfile(UserProfileBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="user.id", unique=True, nullable=False)
     risk_assessment_score: int = Field(default=0, ge=0, le=100)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(
-        default_factory=datetime.utcnow,
-        sa_column_kwargs={"onupdate": datetime.utcnow},
+        default_factory=utc_now,
+        sa_column_kwargs={"onupdate": utc_now},
     )
     user: "User" = Relationship(
         back_populates="profile",
@@ -260,7 +261,7 @@ class KycDocument(SQLModel, table=True):
     verified: bool = Field(default=False)
     verified_by: uuid.UUID | None = Field(default=None, foreign_key="user.id")
     verified_at: datetime | None = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     user: "User" = Relationship(
         back_populates="kyc_documents",
         sa_relationship_kwargs={"foreign_keys": "[KycDocument.user_id]"}
@@ -332,7 +333,7 @@ class TransactionUpdate(TransactionBase):
 class Transaction(TransactionBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="user.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     executed_at: datetime | None = Field(default=None)
     user: User = Relationship(back_populates="transactions")
 
@@ -357,7 +358,7 @@ class TradeBase(SQLModel):
     volume: float = Field(gt=0)
     profit_loss: float | None = None
     status: TradeStatus = TradeStatus.OPEN
-    opened_at: datetime = Field(default_factory=datetime.utcnow)
+    opened_at: datetime = Field(default_factory=utc_now)
     closed_at: datetime | None = None
     notes: str | None = Field(default=None, max_length=255)
 
@@ -402,7 +403,7 @@ class DailyPerformanceCreate(DailyPerformanceBase):
 class DailyPerformance(DailyPerformanceBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="user.id", nullable=False)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     user: User = Relationship(back_populates="daily_performance")
 
 
@@ -425,7 +426,7 @@ class AccountSummaryBase(SQLModel):
     winning_trades: int = 0
     losing_trades: int = 0
     win_rate: float = 0.0
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class AccountSummary(AccountSummaryBase, table=True):
@@ -467,7 +468,7 @@ class TradeSimulationBase(SQLModel):
     exit_price: float | None = None
     profit_loss: float | None = None
     status: str = Field(max_length=10)
-    opened_at: datetime = Field(default_factory=datetime.utcnow)
+    opened_at: datetime = Field(default_factory=utc_now)
     closed_at: datetime | None = None
 
 
@@ -486,7 +487,7 @@ class TradeSimulationUpdate(TradeSimulationBase):
 class TradeSimulation(TradeSimulationBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="user.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     user: User = Relationship(back_populates="trade_simulations")
 
 
@@ -504,7 +505,7 @@ class TradeSimulationsPublic(SQLModel):
 class MarketDataCacheBase(SQLModel):
     symbol: str = Field(max_length=20, primary_key=True)
     current_price: float | None = None
-    last_updated: datetime = Field(default_factory=datetime.utcnow)
+    last_updated: datetime = Field(default_factory=utc_now)
     daily_high: float | None = None
     daily_low: float | None = None
     price_change: float | None = None
@@ -544,8 +545,8 @@ class TraderProfileBase(SQLModel):
     total_copiers: int = Field(default=0)
     total_assets_under_copy: float = Field(default=0.0)
     average_monthly_return: float = Field(default=0.0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class TraderProfileCreate(TraderProfileBase):
@@ -584,7 +585,7 @@ class TraderProfilesPublic(SQLModel):
 # User Trader Copy Models
 class UserTraderCopyBase(SQLModel):
     copy_amount: float = Field(gt=0)
-    copy_started_at: datetime = Field(default_factory=datetime.utcnow)
+    copy_started_at: datetime = Field(default_factory=utc_now)
     copy_status: CopyStatus = CopyStatus.ACTIVE
     copy_settings: dict | None = Field(default=None, sa_column=Column(JSON))
 
@@ -627,7 +628,7 @@ class TraderTradeBase(SQLModel):
     volume: float = Field(gt=0)
     profit_loss: float | None = None
     status: TradeStatus = TradeStatus.OPEN
-    executed_at: datetime = Field(default_factory=datetime.utcnow)
+    executed_at: datetime = Field(default_factory=utc_now)
     is_copyable: bool = Field(default=True)
     notes: str | None = Field(default=None, max_length=500)
 
@@ -675,6 +676,6 @@ class ExecutionEvent(SQLModel, table=True):
     payload: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id")
     trader_profile_id: uuid.UUID | None = Field(default=None, foreign_key="traderprofile.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
     user: Optional["User"] = Relationship(back_populates="execution_events")
     trader_profile: Optional["TraderProfile"] = Relationship(back_populates="execution_events")

@@ -46,6 +46,15 @@ TEST_USERS: list[SeedUser] = [
         description="Administrator test account",
     ),
     SeedUser(
+        email="newadmin@apex.com",
+        password="NewAdmin123!",
+        full_name="New Test Administrator",
+        role=UserRole.ADMIN,
+        account_tier=AccountTier.PREMIUM,
+        kyc_status=KycStatus.APPROVED,
+        description="New administrator test account",
+    ),
+    SeedUser(
         email="testuser@apex.com",
         password="UserTest123!",
         full_name="Test User",

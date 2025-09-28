@@ -18,6 +18,7 @@ from app.models import (
     User,
     UserRole,
 )
+from app.core.time import utc_now
 from app.services.execution_events import record_execution_event
 from app.services.trader_simulator import TraderSimulator
 
@@ -117,7 +118,7 @@ def get_admin_dashboard_summary(
         total_withdrawals=float(withdrawal_sum or 0.0),
     )
 
-    threshold = datetime.utcnow() - timedelta(minutes=ONLINE_THRESHOLD_MINUTES)
+    threshold = utc_now() - timedelta(minutes=ONLINE_THRESHOLD_MINUTES)
     online_users = session.exec(
         select(User)
         .where(User.last_login_at.is_not(None))
@@ -186,7 +187,7 @@ def get_admin_dashboard_summary(
 
 
 @router.post("/simulations/run", response_model=SimulationTriggerResponse)
-def trigger_simulated_trades(
+async def trigger_simulated_trades(
     *,
     session: SessionDep,
     current_user: CurrentUser,
@@ -221,7 +222,7 @@ def trigger_simulated_trades(
                 profile_cache[source_trade.trader_profile_id] = cached
             trader_display_name, trader_code = cached
 
-        record_execution_event(
+        await record_execution_event(
             session,
             event_type=ExecutionEventType.FOLLOWER_PROFIT,
             description=f"Copy trade {follower_trade.symbol}",
@@ -253,7 +254,7 @@ def trigger_simulated_trades(
     "/simulations/users/{user_id}/profit",
     response_model=ManualProfitResponse,
 )
-def grant_manual_profit_event(
+async def grant_manual_profit_event(
     *,
     session: SessionDep,
     current_user: CurrentUser,
@@ -280,12 +281,12 @@ def grant_manual_profit_event(
         transaction_type=TransactionType.ADJUSTMENT,
         status=TransactionStatus.COMPLETED,
         description=payload.description or "Admin balance adjustment",
-        created_at=datetime.utcnow(),
-        executed_at=datetime.utcnow(),
+        created_at=utc_now(),
+        executed_at=utc_now(),
     )
     session.add(transaction)
 
-    event = record_execution_event(
+    event = await record_execution_event(
         session,
         event_type=ExecutionEventType.MANUAL_ADJUSTMENT,
         description=payload.description or "Admin balance adjustment",

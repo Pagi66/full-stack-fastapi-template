@@ -6,6 +6,8 @@ import { useLocation } from "@tanstack/react-router";
 import { Badge } from "@/components/base/badges/badges";
 import { Tabs } from "@/components/application/tabs/tabs";
 import { useAuth } from "@/providers/auth-provider";
+// import { useExecutionFeed } from "@/providers/execution-feed-provider";
+// import { ExecutionFeed } from "@/components/dashboard/execution-feed";
 import {
   PortfolioService,
   type DailyPerformanceEntry,
@@ -13,7 +15,6 @@ import {
 } from "@/api/services/PortfolioService";
 import { TransactionsService } from "@/api/services/TransactionsService";
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
-import { CopyTradingService, type ExecutionFeedEvent } from "@/api/services/CopyTradingService";
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
@@ -59,14 +60,14 @@ export const UserDashboard = ({ children }: { children?: ReactNode }) => {
     enabled: isRootDashboard,
   });
 
-  const executionFeedQuery = useQuery({
-    queryKey: ["execution-feed"],
-    queryFn: () => CopyTradingService.getExecutionFeed({ limit: 10 }),
-    refetchInterval: isRootDashboard ? 8000 : false,
-    enabled: isRootDashboard,
-  });
+  // const {
+  //   events: executionEvents,
+  //   isConnected,
+  // } = useExecutionFeed();
 
-  const executionFeed = executionFeedQuery.data ?? [];
+  // const isExecutionLoading = isRootDashboard && !isConnected && executionEvents.length === 0;
+  const executionEvents = [];
+  const isExecutionLoading = false;
 
   const summary = accountSummaryQuery.data;
   const trades = tradesQuery.data?.data ?? [];
@@ -80,7 +81,8 @@ export const UserDashboard = ({ children }: { children?: ReactNode }) => {
       performanceQuery.isLoading ||
       transactionsQuery.isLoading ||
       marketDataQuery.isLoading ||
-      executionFeedQuery.isLoading);
+      isExecutionLoading);
+
 
   const portfolioTelemetry = useMemo(() => {
     if (!isRootDashboard) {
@@ -106,7 +108,7 @@ export const UserDashboard = ({ children }: { children?: ReactNode }) => {
         title: "Allocated to Copy",
         value: formatCurrency(allocatedCopy),
         icon: Users01,
-        change: `${executionFeed.length} recent`,
+        change: `${executionEvents.length} recent`,
         changeLabel: "Recent executions",
         color: "brand" as const,
       },
@@ -127,20 +129,7 @@ export const UserDashboard = ({ children }: { children?: ReactNode }) => {
         color: "brand" as const,
       },
     ];
-  }, [executionFeed.length, isRootDashboard, summary, trades, user]);
-
-  const liveExecutions = useMemo(
-    () =>
-      executionFeed.map((event) => ({
-        id: event.id,
-        timestamp: new Date(event.createdAt),
-        trader: event.traderDisplayName ?? "Manual Adjustment",
-        symbol: event.symbol ?? "—",
-        amount: event.amount,
-        type: event.eventType,
-      })),
-    [executionFeed]
-  );
+  }, [executionEvents.length, isRootDashboard, summary, trades, user]);
 
   const renderDailyPerformance = (entries: DailyPerformanceEntry[]) => {
     if (!entries.length) {
@@ -261,60 +250,7 @@ export const UserDashboard = ({ children }: { children?: ReactNode }) => {
         ))}
       </section>
 
-      <section className="rounded-2xl border border-secondary bg-secondary p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-primary">Live Execution Feed</h2>
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
-            <span className="text-sm text-tertiary">Real-time streaming</span>
-          </div>
-        </div>
-        <div className="space-y-3">
-          {executionFeedQuery.isLoading ? (
-            <div className="flex justify-center py-6">
-              <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-brand-primary" />
-            </div>
-          ) : liveExecutions.length === 0 ? (
-            <div className="rounded-lg border border-secondary bg-primary p-4 text-center text-sm text-tertiary">
-              No executions yet. Start copying a trader to see live activity.
-            </div>
-          ) : (
-            liveExecutions.map((event) => (
-              <motion.div
-                key={event.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="flex items-center justify-between rounded-lg border border-secondary bg-primary p-3"
-              >
-                <span className="font-mono text-xs text-tertiary">
-                  {event.timestamp.toLocaleTimeString()}
-                </span>
-                <span className="flex-1 px-3 text-sm text-primary">{event.trader}</span>
-                <Badge
-                  size="sm"
-                  color={
-                    event.type === 'FOLLOWER_PROFIT'
-                      ? 'success'
-                      : event.type === 'TRADER_SIMULATION'
-                      ? 'brand'
-                      : 'warning'
-                  }
-                >
-                  {event.type.replace('_', ' ')}
-                </Badge>
-                <span className="px-3 text-sm text-tertiary">{event.symbol}</span>
-                <span
-                  className={`text-sm font-semibold ${
-                    event.amount >= 0 ? 'text-success-600' : 'text-error-600'
-                  }`}
-                >
-                  {formatCurrency(event.amount)}
-                </span>
-              </motion.div>
-            ))
-          )}
-        </div>
-      </section>
+      {/* <ExecutionFeed /> */}
 
       <section className="rounded-2xl border border-secondary bg-secondary p-6">
         <Tabs>

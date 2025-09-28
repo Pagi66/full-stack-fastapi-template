@@ -6,6 +6,7 @@ from typing import Any
 from sqlmodel import Session, select
 
 from app.core.security import get_password_hash, verify_password
+from app.core.time import utc_now
 from app.models import (
     AccountSummary,
     AccountSummaryBase,
@@ -121,7 +122,7 @@ def update_transaction(
 ) -> Transaction:
     tx_data = tx_in.model_dump(exclude_unset=True)
     if "status" in tx_data and tx_data["status"] == TransactionStatus.COMPLETED:
-        tx_data.setdefault("executed_at", datetime.utcnow())
+        tx_data.setdefault("executed_at", utc_now())
     db_tx.sqlmodel_update(tx_data)
     session.add(db_tx)
     session.commit()

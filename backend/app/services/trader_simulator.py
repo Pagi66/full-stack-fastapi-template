@@ -1,10 +1,11 @@
-﻿import random
+import random
 import uuid
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from typing import Any, Dict, List
 
 from sqlmodel import Session, select
+from app.core.time import utc_now
 
 from app.models import (
     AccountSummary,
@@ -275,16 +276,16 @@ class TraderSimulator:
                     "win_rate": daily_win_rate,
                     "previous_day_wins": wins,
                     "previous_day_trades": total,
-                    "last_win_rate_calculated_at": datetime.utcnow().isoformat(),
+                    "last_win_rate_calculated_at": utc_now().isoformat(),
                 }
             )
         else:
             metrics.setdefault("previous_day_wins", 0)
             metrics.setdefault("previous_day_trades", 0)
-            metrics["last_win_rate_calculated_at"] = datetime.utcnow().isoformat()
+            metrics["last_win_rate_calculated_at"] = utc_now().isoformat()
 
         trader_profile.performance_metrics = metrics
-        trader_profile.updated_at = datetime.utcnow()
+        trader_profile.updated_at = utc_now()
         db.add(trader_profile)
 
     def generate_trader_performance(self, db: Session) -> int:
@@ -304,13 +305,13 @@ class TraderSimulator:
 
             if trades:
                 earliest = min(trade.executed_at for trade in trades)
-                total_days = max((datetime.utcnow() - earliest).days, 1)
+                total_days = max((utc_now() - earliest).days, 1)
                 monthly_return = (performance_metrics["total_profit_loss"] / total_days) * 30
                 trader_profile.average_monthly_return = round(monthly_return, 2)
             else:
                 trader_profile.average_monthly_return = 0.0
 
-            trader_profile.updated_at = datetime.utcnow()
+            trader_profile.updated_at = utc_now()
             db.add(trader_profile)
 
         db.commit()
@@ -322,7 +323,7 @@ class TraderSimulator:
         trading_day: date | None = None,
         trader_profile_ids: list[uuid.UUID] | None = None,
     ) -> SimulationRun:
-        trading_day = trading_day or datetime.utcnow().date()
+        trading_day = trading_day or utc_now().date()
         statement = select(TraderProfile).where(TraderProfile.is_public == True)
         if trader_profile_ids:
             statement = statement.where(TraderProfile.id.in_(trader_profile_ids))
@@ -410,7 +411,7 @@ class TraderSimulator:
                 profit_loss=round(scaled_profit_loss, 2),
                 status=TradeStatus.CLOSED,
                 opened_at=trader_trade.executed_at,
-                closed_at=datetime.utcnow(),
+                closed_at=utc_now(),
                 notes=f"Copied from trader {trader_profile.user_id if trader_profile else 'Unknown'}",
             )
 
@@ -437,7 +438,7 @@ class TraderSimulator:
         else:
             summary.losing_trades += 1
         summary.win_rate = (summary.winning_trades / summary.total_trades * 100) if summary.total_trades > 0 else 0
-        summary.updated_at = datetime.utcnow()
+        summary.updated_at = utc_now()
         db.add(summary)
 
     def initialize_trader_profiles(self, db: Session) -> int:

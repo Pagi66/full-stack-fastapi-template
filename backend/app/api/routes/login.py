@@ -10,6 +10,7 @@ from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.core import security
 from app.core.config import settings
 from app.core.security import get_password_hash
+from app.core.time import utc_now
 from app.models import Message, NewPassword, Token, UserPublic
 from app.utils import (
     generate_password_reset_token,
@@ -41,7 +42,7 @@ def login_access_token(
         expires_delta=access_token_expires,
         extra_claims={"role": user.role.value},
     )
-    user.last_login_at = datetime.utcnow()
+    user.last_login_at = utc_now()
     session.add(user)
     session.commit()
     return Token(access_token=token, role=user.role)

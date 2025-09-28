@@ -16,6 +16,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardCopyTradingRouteImport } from './routes/dashboard/copy-trading'
+import { Route as DashboardExecutionsRouteImport } from './routes/dashboard/executions'
 import { Route as AdminTraderManagerRouteImport } from './routes/admin/trader-manager'
 import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -57,6 +58,11 @@ const DashboardCopyTradingRoute = DashboardCopyTradingRouteImport.update({
   path: '/copy-trading',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardExecutionsRoute = DashboardExecutionsRouteImport.update({
+  id: '/executions',
+  path: '/executions',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const AdminTraderManagerRoute = AdminTraderManagerRouteImport.update({
   id: '/admin/trader-manager',
   path: '/admin/trader-manager',
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/admin/trader-manager': typeof AdminTraderManagerRoute
   '/admin/kyc-review': typeof AdminKycReviewRoute
   '/dashboard/copy-trading': typeof DashboardCopyTradingRoute
+  '/dashboard/executions': typeof DashboardExecutionsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/admin/trader-manager': typeof AdminTraderManagerRoute
   '/admin/kyc-review': typeof AdminKycReviewRoute
   '/dashboard/copy-trading': typeof DashboardCopyTradingRoute
+  '/dashboard/executions': typeof DashboardExecutionsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/admin/trader-manager': typeof AdminTraderManagerRoute
   '/admin/kyc-review': typeof AdminKycReviewRoute
   '/dashboard/copy-trading': typeof DashboardCopyTradingRoute
+  '/dashboard/executions': typeof DashboardExecutionsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/admin/trader-manager'
     | '/admin/kyc-review'
     | '/dashboard/copy-trading'
+    | '/dashboard/executions'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/admin/trader-manager'
     | '/admin/kyc-review'
     | '/dashboard/copy-trading'
+    | '/dashboard/executions'
   id:
     | '__root__'
     | '/'
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | '/admin/trader-manager'
     | '/admin/kyc-review'
     | '/dashboard/copy-trading'
+    | '/dashboard/executions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {

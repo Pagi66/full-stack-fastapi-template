@@ -7,11 +7,13 @@ from datetime import datetime
 from typing import Any
 
 from sqlmodel import Session
+from app.core.time import utc_now
 
 from app.models import ExecutionEvent, ExecutionEventType
+from app.api.routes.execution_events import broadcast_execution_event
 
 
-def record_execution_event(
+async def record_execution_event(
     session: Session,
     *,
     event_type: ExecutionEventType,
@@ -28,9 +30,14 @@ def record_execution_event(
         user_id=user_id,
         trader_profile_id=trader_profile_id,
         payload=payload or {},
-        created_at=datetime.utcnow(),
+        created_at=utc_now(),
     )
     session.add(event)
+    session.flush()  # Ensure event gets an ID
+    
+    # Broadcast the event to WebSocket clients
+    await broadcast_execution_event(event)
+    
     return event
 
 

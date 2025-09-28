@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.routes import (
     admin,
     copy_trading,
+    execution_events,
     items,
     login,
     performance,
@@ -26,6 +27,7 @@ api_router.include_router(trades.router)
 api_router.include_router(performance.router)
 api_router.include_router(traders.router)
 api_router.include_router(copy_trading.router)
+api_router.include_router(execution_events.router)
 
 
 if settings.ENVIRONMENT == "local":

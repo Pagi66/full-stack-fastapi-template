@@ -10,6 +10,7 @@ from app.models import (
     TransactionStatus,
     TransactionType,
 )
+from app.core.time import utc_now
 from app.tests.utils.user import create_random_user
 
 
@@ -24,7 +25,7 @@ def test_admin_dashboard_summary(
     client: TestClient, superuser_token_headers: dict[str, str], db: Session
 ) -> None:
     user = create_random_user(db)
-    user.last_login_at = datetime.utcnow()
+    user.last_login_at = utc_now()
     user.kyc_status = KycStatus.PENDING
     user.kyc_notes = 'Passport uploaded'
     db.add(user)

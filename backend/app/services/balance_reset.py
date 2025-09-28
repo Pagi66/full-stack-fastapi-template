@@ -12,6 +12,7 @@ from app.models import (
     TransactionType,
     User,
 )
+from app.core.time import utc_now
 
 
 def ensure_zero_balance(
@@ -35,7 +36,7 @@ def ensure_zero_balance(
         transaction_type=TransactionType.ADJUSTMENT,
         status=TransactionStatus.COMPLETED,
         description=description,
-        executed_at=datetime.utcnow(),
+        executed_at=utc_now(),
     )
     session.add(transaction)
     return True
