@@ -27,6 +27,29 @@ export type ManualProfitResponse = {
   event_id: string;
 };
 
+export type PendingWithdrawal = {
+  id: string;
+  user_id: string;
+  email: string;
+  amount: number;
+  description: string;
+  created_at: string;
+  status: string;
+};
+
+export type PendingWithdrawalsList = {
+  data: Array<PendingWithdrawal>;
+  total: number;
+};
+
+export type WithdrawalResponse = {
+  transaction_id: string;
+  status: string;
+  amount: number;
+  description: string;
+  created_at: string;
+};
+
 export class AdminService {
   /**
    * Retrieve aggregated data for the admin dashboard.
@@ -126,6 +149,64 @@ export class AdminService {
       },
       body: requestBody,
       mediaType: 'application/json',
+    });
+  }
+
+  /**
+   * Get pending withdrawal requests for admin approval.
+   */
+  public static adminGetPendingWithdrawals(): CancelablePromise<PendingWithdrawalsList> {
+    return __request(OpenAPI, {
+      method: 'GET',
+      url: '/api/v1/admin/simulations/withdrawals/pending',
+      errors: {
+        403: "Not enough permissions",
+      },
+    });
+  }
+
+  /**
+   * Approve a pending withdrawal request.
+   */
+  public static adminApproveWithdrawal(
+    transactionId: string,
+  ): CancelablePromise<WithdrawalResponse> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/api/v1/admin/simulations/withdrawals/{transaction_id}/approve',
+      path: {
+        transaction_id: transactionId,
+      },
+      errors: {
+        403: "Not enough permissions",
+        404: "Transaction not found",
+        400: "Bad request",
+      },
+    });
+  }
+
+  /**
+   * Reject a pending withdrawal request.
+   */
+  public static adminRejectWithdrawal(
+    transactionId: string,
+    reason: string,
+  ): CancelablePromise<WithdrawalResponse> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/api/v1/admin/simulations/withdrawals/{transaction_id}/reject',
+      path: {
+        transaction_id: transactionId,
+      },
+      body: {
+        reason,
+      },
+      mediaType: 'application/json',
+      errors: {
+        403: "Not enough permissions",
+        404: "Transaction not found",
+        400: "Bad request",
+      },
     });
   }
 }

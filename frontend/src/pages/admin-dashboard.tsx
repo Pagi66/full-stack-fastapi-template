@@ -9,6 +9,7 @@ import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Input } from "@/components/base/input/input";
 import { TradersList } from "@/components/dashboard/traders-list";
+import { WithdrawalApprovals } from "@/components/admin/withdrawal-approvals";
 import {
   AdminService,
   type ManualProfitRequest,
@@ -27,6 +28,7 @@ import {
   LogOut01,
   UserCheck02,
   Users03,
+  Wallet01,
 } from "@untitledui/icons";
 
 const formatCurrency = (value: number) =>
@@ -576,6 +578,23 @@ export const Dashboard = () => {
               </div>
             )}
           </div>
+        </section>
+
+        {/* Withdrawal Approvals Section */}
+        <section className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-fg-primary">Withdrawal Approvals</h2>
+              <p className="text-sm text-fg-tertiary">Review and approve pending withdrawal requests from copy trading balances.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Wallet01 className="h-5 w-5 text-fg-tertiary" />
+              <Badge type="color" size="sm" color="brand">
+                Copy Trading
+              </Badge>
+            </div>
+          </div>
+          <WithdrawalApprovals />
         </section>
 
         <section className="rounded-lg border border-border-secondary bg-bg-primary p-6 shadow-xs">

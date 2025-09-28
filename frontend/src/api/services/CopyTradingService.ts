@@ -66,6 +66,19 @@ export interface ExecutionFeedResult {
   count: number;
 }
 
+export interface WithdrawalRequest {
+  amount: number;
+  description: string;
+}
+
+export interface WithdrawalResponse {
+  transaction_id: string;
+  status: string;
+  amount: number;
+  description: string;
+  created_at: string;
+}
+
 type BackendTraderSummary = {
   id: string;
   trader_code: string;
@@ -130,12 +143,25 @@ type BackendExecutionFeedResponse = {
   latest_cursor?: string | null;
 };
 
+type BackendWithdrawalResponse = {
+  transaction_id: string;
+  status: string;
+  amount: number;
+  description: string;
+  created_at: string;
+};
+
 const apiBase = () => (OpenAPI.BASE ?? "").replace(/\/$/, "");
 
 const resolveToken = async (): Promise<string | undefined> => {
   const tokenGetter = OpenAPI.TOKEN;
   if (typeof tokenGetter === "function") {
-    const token = await tokenGetter();
+    // Create a mock ApiRequestOptions object
+    const mockOptions = {
+      url: "",
+      method: "GET" as const,
+    };
+    const token = await tokenGetter(mockOptions);
     return token ? token : undefined;
   }
 
@@ -350,5 +376,19 @@ export class CopyTradingService {
       latestCursor: payload.latest_cursor ?? null,
       count: payload.count,
     };
+  }
+
+  static async copyTradingRequestWithdrawal(
+    requestBody: WithdrawalRequest,
+  ): Promise<WithdrawalResponse> {
+    const payload = await authorizedFetch<BackendWithdrawalResponse>(
+      "/api/v1/admin/simulations/withdrawals/request",
+      {
+        method: "POST",
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    return payload;
   }
 }
